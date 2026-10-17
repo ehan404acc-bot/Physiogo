@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'nasihfiverr@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // User profiles - open for app read/write (patient mobile & email sync)
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Physiotherapist directory
+    match /physiotherapists/{therapistId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Patients
+    match /patients/{patientId} {
+      allow read, write: if true;
+    }
+
+    // Appointments
+    match /appointments/{appointmentId} {
+      allow read, write: if true;
+    }
+
+    // Clinical assessments
+    match /clinicalAssessments/{assessmentId} {
+      allow read, write: if true;
+    }
+
+    // Treatment sessions
+    match /treatmentSessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    // Rehabilitation plans
+    match /rehabilitationPlans/{planId} {
+      allow read, write: if true;
+    }
+
+    // Progress measurements
+    match /progressMeasurements/{measurementId} {
+      allow read, write: if true;
+    }
+
+    // Therapist transfer requests
+    match /therapistTransferRequests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Record access grants (patient consent for handover)
+    match /recordAccessGrants/{grantId} {
+      allow read, write: if true;
+    }
+
+    // AI Handover summaries
+    match /aiHandoverSummaries/{summaryId} {
+      allow read, write: if true;
+    }
+
+    // Community posts
+    match /communityPosts/{postId} {
+      allow read, write: if true;
+    }
+
+    // Community comments
+    match /communityComments/{commentId} {
+      allow read, write: if true;
+    }
+
+    // Equipment listings
+    match /equipmentListings/{listingId} {
+      allow read, write: if true;
+    }
+
+    // Equipment requests
+    match /equipmentRequests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Complaints
+    match /complaints/{complaintId} {
+      allow read, write: if true;
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    // Assessment templates
+    match /assessmentTemplates/{templateId} {
+      allow read, write: if true;
+    }
+  }
+}

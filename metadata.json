@@ -1,0 +1,6 @@
+{
+  "name": "PhysioGo - Smart Physiotherapy & Rehabilitation Continuity",
+  "description": "PhysioGo connects patients with verified physiotherapists, featuring the portable Rehabilitation Passport, smart clinician handover, recovery progress tracking, support communities, and equipment marketplace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

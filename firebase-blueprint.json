@@ -1,0 +1,431 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing base role and contact information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["patient", "physiotherapist", "admin"] },
+        "mobile": { "type": "string", "maxLength": 20 },
+        "city": { "type": "string", "maxLength": 100 },
+        "state": { "type": "string", "maxLength": 100 },
+        "pinCode": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "fullName", "role"]
+    },
+    "Physiotherapist": {
+      "title": "Physiotherapist",
+      "description": "Professional physiotherapist profile and verification details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "qualification": { "type": "string", "maxLength": 128 },
+        "college": { "type": "string", "maxLength": 150 },
+        "graduationYear": { "type": "number" },
+        "experienceYears": { "type": "number" },
+        "registrationNumber": { "type": "string", "maxLength": 100 },
+        "registrationAuthority": { "type": "string", "maxLength": 150 },
+        "specializations": { "type": "array" },
+        "languages": { "type": "array" },
+        "consultationFee": { "type": "number" },
+        "sessionDurationMinutes": { "type": "number" },
+        "clinicAddress": { "type": "string", "maxLength": 255 },
+        "serviceAreas": { "type": "array" },
+        "offersHomeVisit": { "type": "boolean" },
+        "offersClinicVisit": { "type": "boolean" },
+        "offersOnline": { "type": "boolean" },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "rejected", "suspended"] },
+        "rating": { "type": "number" },
+        "totalReviews": { "type": "number" },
+        "bio": { "type": "string", "maxLength": 2000 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "fullName", "qualification", "verificationStatus"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient medical profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "maxLength": 20 },
+        "currentTherapistId": { "type": "string", "maxLength": 128 },
+        "currentTherapistName": { "type": "string", "maxLength": 128 },
+        "city": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "fullName"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Physiotherapy booking and scheduling record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "patientName": { "type": "string", "maxLength": 128 },
+        "patientPhone": { "type": "string", "maxLength": 20 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "consultationType": { "type": "string", "enum": ["clinic", "home", "online"] },
+        "date": { "type": "string", "maxLength": 30 },
+        "timeSlot": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined", "confirmed", "completed", "cancelled"] },
+        "declineReason": { "type": "string", "maxLength": 255 },
+        "fee": { "type": "number" },
+        "chiefComplaint": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "consultationType", "date", "status"]
+    },
+    "ClinicalAssessment": {
+      "title": "ClinicalAssessment",
+      "description": "Comprehensive structured physiotherapy initial or follow-up assessment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "assessmentType": { "type": "string", "enum": ["general", "musculoskeletal", "neurological", "postoperative", "followup", "discharge"] },
+        "date": { "type": "string", "maxLength": 30 },
+        "chiefComplaint": { "type": "string", "maxLength": 1000 },
+        "historyOfIllness": { "type": "string", "maxLength": 2000 },
+        "painScale": { "type": "number" },
+        "painLocation": { "type": "string", "maxLength": 200 },
+        "painCharacter": { "type": "string", "maxLength": 200 },
+        "aggravatingFactors": { "type": "string", "maxLength": 500 },
+        "relievingFactors": { "type": "string", "maxLength": 500 },
+        "medicalHistory": { "type": "string", "maxLength": 1000 },
+        "postureObservations": { "type": "string", "maxLength": 1000 },
+        "rangeOfMotion": { "type": "object" },
+        "muscleStrength": { "type": "object" },
+        "functionalMobility": { "type": "string", "maxLength": 1000 },
+        "clinicalImpression": { "type": "string", "maxLength": 2000 },
+        "shortTermGoals": { "type": "string", "maxLength": 1000 },
+        "longTermGoals": { "type": "string", "maxLength": 1000 },
+        "precautions": { "type": "string", "maxLength": 1000 },
+        "plannedInterventions": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "assessmentType", "clinicalImpression"]
+    },
+    "TreatmentSession": {
+      "title": "TreatmentSession",
+      "description": "Chronological treatment session note with SOAP format",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "sessionNumber": { "type": "number" },
+        "date": { "type": "string", "maxLength": 30 },
+        "subjective": { "type": "string", "maxLength": 2000 },
+        "objective": { "type": "string", "maxLength": 2000 },
+        "assessment": { "type": "string", "maxLength": 2000 },
+        "plan": { "type": "string", "maxLength": 2000 },
+        "interventions": { "type": "array" },
+        "exercises": { "type": "array" },
+        "patientResponse": { "type": "string", "maxLength": 1000 },
+        "painLevelBefore": { "type": "number" },
+        "painLevelAfter": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "sessionNumber", "date"]
+    },
+    "RehabilitationPlan": {
+      "title": "RehabilitationPlan",
+      "description": "Prescribed home and clinic exercise programme",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 128 },
+        "frequency": { "type": "string", "maxLength": 100 },
+        "durationWeeks": { "type": "number" },
+        "precautions": { "type": "string", "maxLength": 1000 },
+        "exercises": { "type": "array" },
+        "status": { "type": "string", "enum": ["active", "completed", "discontinued"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "title", "status"]
+    },
+    "ProgressMeasurement": {
+      "title": "ProgressMeasurement",
+      "description": "Periodic numerical outcome metric tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 30 },
+        "painScore": { "type": "number" },
+        "flexionRomDeg": { "type": "number" },
+        "extensionRomDeg": { "type": "number" },
+        "strengthGrade": { "type": "number" },
+        "functionalMobilityScore": { "type": "number" },
+        "timedUpAndGoSeconds": { "type": "number" },
+        "adherenceRatePct": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "date"]
+    },
+    "TherapistTransferRequest": {
+      "title": "TherapistTransferRequest",
+      "description": "Patient request to transfer care to a receiving physiotherapist",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "patientName": { "type": "string", "maxLength": 128 },
+        "previousTherapistId": { "type": "string", "maxLength": 128 },
+        "previousTherapistName": { "type": "string", "maxLength": 128 },
+        "newTherapistId": { "type": "string", "maxLength": 128 },
+        "newTherapistName": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "enum": ["relocation", "scheduling", "preference", "service_quality", "rehab_change", "other"] },
+        "reasonDetails": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined", "cancelled"] },
+        "scopeOfAccessGranted": { "type": "array" },
+        "patientConsentGiven": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["patientId", "newTherapistId", "status", "patientConsentGiven"]
+    },
+    "RecordAccessGrant": {
+      "title": "RecordAccessGrant",
+      "description": "Patient authorized record sharing grant for therapist handover",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "grantedAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "revoked", "expired"] },
+        "scope": { "type": "array" },
+        "revokedAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "status", "grantedAt"]
+    },
+    "AiHandoverSummary": {
+      "title": "AiHandoverSummary",
+      "description": "AI-generated clinical continuity summary for incoming physiotherapist review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "summaryText": { "type": "string", "maxLength": 5000 },
+        "sections": { "type": "object" },
+        "isClinicianReviewed": { "type": "boolean" },
+        "clinicianNotes": { "type": "string", "maxLength": 2000 },
+        "sourceRecordCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["patientId", "therapistId", "summaryText"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Rehabilitation peer community discussion post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "communityId": { "type": "string", "maxLength": 64 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorDisplayName": { "type": "string", "maxLength": 100 },
+        "authorRole": { "type": "string", "maxLength": 30 },
+        "title": { "type": "string", "maxLength": 200 },
+        "content": { "type": "string", "maxLength": 4000 },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "isReported": { "type": "boolean" },
+        "reportReason": { "type": "string", "maxLength": 255 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["communityId", "authorId", "authorDisplayName", "title", "content"]
+    },
+    "CommunityComment": {
+      "title": "CommunityComment",
+      "description": "Comment on a rehabilitation community post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "postId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorDisplayName": { "type": "string", "maxLength": 100 },
+        "content": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["postId", "authorId", "authorDisplayName", "content"]
+    },
+    "EquipmentListing": {
+      "title": "EquipmentListing",
+      "description": "Physiotherapy equipment listed for sale or rent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "sellerId": { "type": "string", "maxLength": 128 },
+        "sellerName": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "price": { "type": "number" },
+        "rentalPricePerDay": { "type": "number" },
+        "isForSale": { "type": "boolean" },
+        "isForRent": { "type": "boolean" },
+        "condition": { "type": "string", "enum": ["Brand New", "Like New", "Refurbished", "Good", "Used"] },
+        "readinessStatus": { "type": "string", "enum": ["Inspected", "Verified Clean", "Self-Reported"] },
+        "lastServicedDate": { "type": "string", "maxLength": 30 },
+        "available": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["sellerId", "name", "category", "price", "condition"]
+    },
+    "EquipmentRequest": {
+      "title": "EquipmentRequest",
+      "description": "Purchase or rental request for physiotherapy equipment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "equipmentId": { "type": "string", "maxLength": 128 },
+        "equipmentName": { "type": "string", "maxLength": 150 },
+        "requesterId": { "type": "string", "maxLength": 128 },
+        "requesterName": { "type": "string", "maxLength": 128 },
+        "requesterPhone": { "type": "string", "maxLength": 20 },
+        "requestType": { "type": "string", "enum": ["purchase", "rental"] },
+        "rentalDays": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "fulfilled", "declined"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["equipmentId", "requesterId", "requestType", "status"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Patient feedback or complaint regarding care or services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "patientName": { "type": "string", "maxLength": 128 },
+        "therapistId": { "type": "string", "maxLength": 128 },
+        "therapistName": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "enum": ["missed_appointment", "poor_communication", "unprofessional_behaviour", "billing_concern", "service_quality", "patient_safety", "other"] },
+        "description": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["submitted", "under_review", "awaiting_response", "investigation", "resolved", "closed"] },
+        "resolutionNotes": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["patientId", "category", "description", "status"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notifications for patients, physiotherapists, and admins",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "type": { "type": "string", "maxLength": 50 },
+        "isRead": { "type": "boolean" },
+        "actionUrl": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["recipientId", "title", "message", "isRead"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Base user profile and role registration"
+    },
+    "/physiotherapists/{therapistId}": {
+      "schema": { "$ref": "#/entities/Physiotherapist" },
+      "description": "Physiotherapist professional profiles and credentials"
+    },
+    "/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/Patient" },
+      "description": "Patient clinical profiles"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Booked, confirmed, and completed appointments"
+    },
+    "/clinicalAssessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/ClinicalAssessment" },
+      "description": "Structured initial, follow-up, and discharge assessments"
+    },
+    "/treatmentSessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/TreatmentSession" },
+      "description": "Chronological treatment session SOAP notes"
+    },
+    "/rehabilitationPlans/{planId}": {
+      "schema": { "$ref": "#/entities/RehabilitationPlan" },
+      "description": "Prescribed exercise rehabilitation programmes"
+    },
+    "/progressMeasurements/{measurementId}": {
+      "schema": { "$ref": "#/entities/ProgressMeasurement" },
+      "description": "Quantified clinical progress measures (pain, ROM, strength, TUG)"
+    },
+    "/therapistTransferRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/TherapistTransferRequest" },
+      "description": "Patient-initiated therapist handover and continuity requests"
+    },
+    "/recordAccessGrants/{grantId}": {
+      "schema": { "$ref": "#/entities/RecordAccessGrant" },
+      "description": "Explicit, revocable patient consent grants for therapist record access"
+    },
+    "/aiHandoverSummaries/{summaryId}": {
+      "schema": { "$ref": "#/entities/AiHandoverSummary" },
+      "description": "AI-assisted clinical continuity summaries"
+    },
+    "/communityPosts/{postId}": {
+      "schema": { "$ref": "#/entities/CommunityPost" },
+      "description": "Rehabilitation support community posts"
+    },
+    "/communityComments/{commentId}": {
+      "schema": { "$ref": "#/entities/CommunityComment" },
+      "description": "Comments on community discussions"
+    },
+    "/equipmentListings/{listingId}": {
+      "schema": { "$ref": "#/entities/EquipmentListing" },
+      "description": "Physiotherapy equipment catalog for purchase or rental"
+    },
+    "/equipmentRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/EquipmentRequest" },
+      "description": "Equipment buy or rent requests"
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Patient feedback and complaints workflow"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Targeted user notifications"
+    }
+  }
+}
