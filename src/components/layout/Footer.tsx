@@ -3,9 +3,10 @@ import { Activity, ShieldCheck, Heart, Phone, Mail, MapPin } from 'lucide-react'
 
 interface FooterProps {
   setActiveView: (view: string) => void;
+  openAuthModal?: (mode: 'login' | 'register_patient' | 'register_pt') => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ setActiveView }) => {
+export const Footer: React.FC<FooterProps> = ({ setActiveView, openAuthModal }) => {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
@@ -22,7 +23,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveView }) => {
             </div>
             <p className="text-slate-400 text-sm max-w-sm leading-relaxed">
               Your Recovery. Your Records. Your Choice. An integrated digital physiotherapy ecosystem
-              connecting patients with verified physiotherapists with patient-controlled Rehabilitation Passports.
+              connecting patients with verified physiotherapists, smart continuity of care, and prescribed home exercise programs.
             </p>
             <div className="flex items-center gap-4 text-xs text-slate-400 pt-2">
               <span className="flex items-center gap-1.5">
@@ -43,6 +44,14 @@ export const Footer: React.FC<FooterProps> = ({ setActiveView }) => {
               <li>
                 <button onClick={() => setActiveView('directory')} className="hover:text-teal-300 transition-colors">
                   Find Physiotherapists
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => openAuthModal ? openAuthModal('register_pt') : setActiveView('login')}
+                  className="text-emerald-400 font-semibold hover:text-emerald-300 transition-colors flex items-center gap-1"
+                >
+                  <span>Physiotherapy Registration Portal</span>
                 </button>
               </li>
               <li>

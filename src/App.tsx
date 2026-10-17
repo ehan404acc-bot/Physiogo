@@ -195,7 +195,7 @@ const MainApp: React.FC = () => {
       </nav>
 
       {/* Footer */}
-      <Footer setActiveView={setActiveView} />
+      <Footer setActiveView={setActiveView} openAuthModal={openAuthModal} />
 
       {/* Auth Modal */}
       <AuthModal

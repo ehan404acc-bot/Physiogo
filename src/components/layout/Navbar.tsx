@@ -398,13 +398,23 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView, openA
                 )}
               </div>
             ) : (
-              <button
-                onClick={() => handleNavClick('login')}
-                className="text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('register_pt')}
+                  className="hidden sm:flex text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-2 rounded-xl transition-colors items-center gap-1.5 shadow-sm"
+                >
+                  <Stethoscope className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Register as Physiotherapist</span>
+                </button>
+                <button
+                  onClick={() => handleNavClick('login')}
+                  className="text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In</span>
+                </button>
+              </div>
             )}
 
             {/* Mobile Hamburger Toggle Button */}
@@ -495,6 +505,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView, openA
                 <span>Therapist Portal</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-emerald-400" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                openAuthModal('register_pt');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full p-2.5 rounded-xl text-xs font-bold text-left bg-emerald-600 text-white flex items-center justify-between shadow-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Stethoscope className="w-4 h-4 text-emerald-200" />
+                <span>Register as Physiotherapist (OTP Verified)</span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-emerald-200" />
             </button>
 
             <button

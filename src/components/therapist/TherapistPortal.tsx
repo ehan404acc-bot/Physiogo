@@ -171,8 +171,29 @@ export const TherapistPortal: React.FC = () => {
   const [selectedApptForDecline, setSelectedApptForDecline] = useState<Appointment | null>(null);
   const [declineReasonText, setDeclineReasonText] = useState('Outside service area');
 
-  // Assessments
+  // Assessments state & editing
   const [assessments, setAssessments] = useState<ClinicalAssessment[]>([SAMPLE_ASSESSMENT]);
+  const [editingAssessment, setEditingAssessment] = useState<ClinicalAssessment>(SAMPLE_ASSESSMENT);
+  const [editAssessmentModalOpen, setEditAssessmentModalOpen] = useState(false);
+  const [assessmentUpdateSuccess, setAssessmentUpdateSuccess] = useState(false);
+  const [assessmentEditForm, setAssessmentEditForm] = useState({
+    chiefComplaint: SAMPLE_ASSESSMENT.chiefComplaint,
+    historyOfIllness: SAMPLE_ASSESSMENT.historyOfIllness,
+    aggravatingFactors: SAMPLE_ASSESSMENT.aggravatingFactors,
+    relievingFactors: SAMPLE_ASSESSMENT.relievingFactors,
+    medicalHistory: SAMPLE_ASSESSMENT.medicalHistory,
+    patientGoals: SAMPLE_ASSESSMENT.patientGoals,
+    painIntensity: SAMPLE_ASSESSMENT.painIntensity,
+    activeRomFlexion: 65,
+    passiveRomFlexion: 72,
+    activeRomExtension: -10,
+    passiveRomExtension: -6,
+    quadStrengthGrade: 3,
+    hamstringStrengthGrade: 4,
+    precautions: SAMPLE_ASSESSMENT.precautions,
+    clinicalImpression: SAMPLE_ASSESSMENT.clinicalImpression,
+  });
+
   const [newAssessmentModalOpen, setNewAssessmentModalOpen] = useState(false);
   const [newAssessmentData, setNewAssessmentData] = useState({
     patientName: 'Vikram Malhotra',
@@ -188,6 +209,106 @@ export const TherapistPortal: React.FC = () => {
     shortTermGoals: 'Achieve 120° knee flexion with pain < 2/10',
     precautions: 'Do not overload patellar tendon past 90 degrees in loaded lunges.',
   });
+
+  // Patient Progress State & Editing
+  const [progressMetrics, setProgressMetrics] = useState<ProgressMeasurement[]>(SAMPLE_PROGRESS_MEASUREMENTS);
+  const [currentProgress, setCurrentProgress] = useState({
+    painScore: 3,
+    flexionRomDeg: 108,
+    extensionRomDeg: 0,
+    rehabilitationPhase: 'Phase II (Week 5) — Active Closed-Chain Strengthening',
+    notes: 'Patient achieving consistent active closed-chain knee flexion past 108° with zero extensor lag.',
+    date: '2026-03-24',
+  });
+  const [editProgressModalOpen, setEditProgressModalOpen] = useState(false);
+  const [progressUpdateSuccess, setProgressUpdateSuccess] = useState(false);
+
+  // Handle Save Edited Assessment to Firestore & state
+  const handleSaveAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const updatedRom = [
+      { joint: 'Right Knee', movement: 'Flexion', activeRom: Number(assessmentEditForm.activeRomFlexion), passiveRom: Number(assessmentEditForm.passiveRomFlexion), normalRom: 135, unit: 'deg', notes: 'Firm end-feel' },
+      { joint: 'Right Knee', movement: 'Extension', activeRom: Number(assessmentEditForm.activeRomExtension), passiveRom: Number(assessmentEditForm.passiveRomExtension), normalRom: 0, unit: 'deg', notes: 'Extensor lag resolved' },
+      { joint: 'Left Knee (Normal)', movement: 'Flexion', activeRom: 138, passiveRom: 140, normalRom: 135, unit: 'deg' },
+      { joint: 'Left Knee (Normal)', movement: 'Extension', activeRom: 0, passiveRom: 2, normalRom: 0, unit: 'deg' },
+    ];
+    const updatedStrength = [
+      { muscleGroup: 'Right Quadriceps', side: 'Right' as const, grade: Number(assessmentEditForm.quadStrengthGrade), notes: 'VMO recruitment active' },
+      { muscleGroup: 'Right Hamstrings', side: 'Right' as const, grade: Number(assessmentEditForm.hamstringStrengthGrade), notes: 'Donor site healed' },
+      { muscleGroup: 'Right Hip Abductors', side: 'Right' as const, grade: 4, notes: 'Trendelenburg negative' },
+      { muscleGroup: 'Left Quadriceps', side: 'Left' as const, grade: 5 },
+    ];
+
+    const updated: ClinicalAssessment = {
+      ...editingAssessment,
+      chiefComplaint: assessmentEditForm.chiefComplaint,
+      historyOfIllness: assessmentEditForm.historyOfIllness,
+      aggravatingFactors: assessmentEditForm.aggravatingFactors,
+      relievingFactors: assessmentEditForm.relievingFactors,
+      medicalHistory: assessmentEditForm.medicalHistory,
+      patientGoals: assessmentEditForm.patientGoals,
+      painIntensity: Number(assessmentEditForm.painIntensity),
+      precautions: assessmentEditForm.precautions,
+      clinicalImpression: assessmentEditForm.clinicalImpression,
+      rangeOfMotion: updatedRom,
+      muscleStrength: updatedStrength,
+      therapistId: currentUser?.uid || editingAssessment.therapistId,
+      therapistName: userProfile?.fullName || editingAssessment.therapistName,
+    };
+
+    setAssessments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setEditingAssessment(updated);
+
+    try {
+      await setDoc(doc(db, 'clinicalAssessments', updated.id), {
+        ...updated,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Saved assessment locally (Firestore note):', err);
+    }
+
+    setAssessmentUpdateSuccess(true);
+    setTimeout(() => {
+      setAssessmentUpdateSuccess(false);
+      setEditAssessmentModalOpen(false);
+    }, 1200);
+  };
+
+  // Handle Save Edited Progress to Firestore & state
+  const handleSaveProgress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newMetric: ProgressMeasurement = {
+      id: 'metric-' + Date.now(),
+      patientId: SAMPLE_PATIENT.uid,
+      therapistId: currentUser?.uid || 'pt-ananya-sharma',
+      therapistName: userProfile?.fullName || 'Dr. Ananya Sharma, MPT',
+      date: new Date().toISOString().split('T')[0],
+      painScore: Number(currentProgress.painScore),
+      flexionRomDeg: Number(currentProgress.flexionRomDeg),
+      extensionRomDeg: Number(currentProgress.extensionRomDeg),
+      notes: currentProgress.notes,
+      createdAt: new Date().toISOString(),
+    };
+
+    setProgressMetrics((prev) => [...prev, newMetric]);
+
+    try {
+      await setDoc(doc(db, 'progressMeasurements', newMetric.id), newMetric);
+      await updateDoc(doc(db, 'patients', SAMPLE_PATIENT.uid), {
+        primaryDiagnosis: `Post-Op Right Knee ACL Reconstruction (${currentProgress.rehabilitationPhase})`,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Saved progress locally (Firestore note):', err);
+    }
+
+    setProgressUpdateSuccess(true);
+    setTimeout(() => {
+      setProgressUpdateSuccess(false);
+      setEditProgressModalOpen(false);
+    }, 1200);
+  };
 
   // SOAP Sessions
   const [treatmentSessions, setTreatmentSessions] = useState<TreatmentSession[]>(SAMPLE_TREATMENT_SESSIONS);
@@ -1058,43 +1179,356 @@ export const TherapistPortal: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: MY PATIENTS */}
+      {/* ============================================================== */}
+      {/* TAB 3: MY PATIENTS (Includes Clinical Assessment & Progress)    */}
+      {/* ============================================================== */}
       {activeTab === 'patients' && (
         <div className="space-y-6">
+          {/* Active Patient Overview Card */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h2 className="text-xl font-black text-slate-900">Patient Roster & Care Status</h2>
-            <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                    VM
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900">{SAMPLE_PATIENT.fullName}</h4>
-                    <p className="text-slate-500">Age: 42 • Male • Gurugram</p>
-                  </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                  VM
                 </div>
-                <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full">
-                  Phase II Post-Op
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-lg text-slate-900">{SAMPLE_PATIENT.fullName}</h3>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full">
+                      Phase II Post-Op
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Age: 42 • Male • Mobile: {SAMPLE_PATIENT.phone} • {SAMPLE_PATIENT.city}, {SAMPLE_PATIENT.state}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssessmentEditForm({
+                      chiefComplaint: editingAssessment.chiefComplaint,
+                      historyOfIllness: editingAssessment.historyOfIllness,
+                      aggravatingFactors: editingAssessment.aggravatingFactors,
+                      relievingFactors: editingAssessment.relievingFactors,
+                      medicalHistory: editingAssessment.medicalHistory,
+                      patientGoals: editingAssessment.patientGoals,
+                      painIntensity: editingAssessment.painIntensity,
+                      activeRomFlexion: editingAssessment.rangeOfMotion[0]?.activeRom || 108,
+                      passiveRomFlexion: editingAssessment.rangeOfMotion[0]?.passiveRom || 115,
+                      activeRomExtension: editingAssessment.rangeOfMotion[1]?.activeRom || 0,
+                      passiveRomExtension: editingAssessment.rangeOfMotion[1]?.passiveRom || 0,
+                      quadStrengthGrade: editingAssessment.muscleStrength[0]?.grade || 4,
+                      hamstringStrengthGrade: editingAssessment.muscleStrength[1]?.grade || 4,
+                      precautions: editingAssessment.precautions,
+                      clinicalImpression: editingAssessment.clinicalImpression,
+                    });
+                    setEditAssessmentModalOpen(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Clinical Assessment</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditProgressModalOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Update Patient Progress</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <span className="text-slate-700">
+                <strong>Primary Diagnosis:</strong> {SAMPLE_PATIENT.primaryDiagnosis}
+              </span>
+              <span className="text-blue-700 font-semibold">
+                Treating Doctor: {userProfile?.fullName || 'Dr. Ananya Sharma, MPT'}
+              </span>
+            </div>
+          </div>
+
+          {/* SECTION 1: CLINICAL ASSESSMENT & CASE HISTORY (Added to Therapist My Patient Portal) */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    Clinical Assessment & History Log
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Comprehensive subjective history, ROM, muscle strength, and clinical impressions
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAssessmentEditForm({
+                    chiefComplaint: editingAssessment.chiefComplaint,
+                    historyOfIllness: editingAssessment.historyOfIllness,
+                    aggravatingFactors: editingAssessment.aggravatingFactors,
+                    relievingFactors: editingAssessment.relievingFactors,
+                    medicalHistory: editingAssessment.medicalHistory,
+                    patientGoals: editingAssessment.patientGoals,
+                    painIntensity: editingAssessment.painIntensity,
+                    activeRomFlexion: editingAssessment.rangeOfMotion[0]?.activeRom || 108,
+                    passiveRomFlexion: editingAssessment.rangeOfMotion[0]?.passiveRom || 115,
+                    activeRomExtension: editingAssessment.rangeOfMotion[1]?.activeRom || 0,
+                    passiveRomExtension: editingAssessment.rangeOfMotion[1]?.passiveRom || 0,
+                    quadStrengthGrade: editingAssessment.muscleStrength[0]?.grade || 4,
+                    hamstringStrengthGrade: editingAssessment.muscleStrength[1]?.grade || 4,
+                    precautions: editingAssessment.precautions,
+                    clinicalImpression: editingAssessment.clinicalImpression,
+                  });
+                  setEditAssessmentModalOpen(true);
+                }}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors w-fit"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-teal-600" />
+                <span>Edit Assessment</span>
+              </button>
+            </div>
+
+            {/* Subjective History Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide text-teal-900 pb-1 border-b border-slate-200">
+                  Subjective History & Symptoms
+                </h4>
+                <p>
+                  <strong className="text-slate-800">Chief Complaint:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.chiefComplaint}</span>
+                </p>
+                <p>
+                  <strong className="text-slate-800">History of Illness / Onset:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.historyOfIllness}</span>
+                </p>
+                <p>
+                  <strong className="text-slate-800">Aggravating Factors:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.aggravatingFactors}</span>
+                </p>
+                <p>
+                  <strong className="text-slate-800">Relieving Factors:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.relievingFactors}</span>
+                </p>
+                <p>
+                  <strong className="text-slate-800">Medical History:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.medicalHistory}</span>
+                </p>
+                <p>
+                  <strong className="text-slate-800">Patient Recovery Goals:</strong>{' '}
+                  <span className="text-slate-700">{editingAssessment.patientGoals}</span>
+                </p>
+              </div>
+
+              {/* Objective Examination: ROM & Strength */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide text-teal-900 pb-1 border-b border-slate-200">
+                  Objective Joint Examination & Strength
+                </h4>
+
+                <div className="space-y-1.5">
+                  <p className="font-bold text-slate-800">Range of Motion (Baseline vs Active):</p>
+                  {editingAssessment.rangeOfMotion.map((r, i) => (
+                    <div key={i} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                      <span className="text-slate-700">{r.joint} {r.movement}</span>
+                      <span className="font-bold text-slate-900">
+                        Active: {r.activeRom}{r.unit} / Passive: {r.passiveRom}{r.unit}
+                        <span className="text-slate-400 font-normal text-[10px] ml-1.5">(Norm: {r.normalRom}{r.unit})</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <p className="font-bold text-slate-800">Muscle Strength (MRC Scale 0-5):</p>
+                  {editingAssessment.muscleStrength.map((m, i) => (
+                    <div key={i} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                      <span className="text-slate-700">{m.muscleGroup} ({m.side})</span>
+                      <span className="font-bold text-slate-900">Grade {m.grade} / 5</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Precautions & Clinical Impression */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-1 text-amber-950">
+                <h5 className="font-bold uppercase text-[11px] tracking-wide flex items-center gap-1.5 text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                  Key Clinical Precautions & Guidelines
+                </h5>
+                <p className="text-amber-900 leading-relaxed font-medium">
+                  {editingAssessment.precautions}
+                </p>
+              </div>
+
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl space-y-1 text-teal-950">
+                <h5 className="font-bold uppercase text-[11px] tracking-wide flex items-center gap-1.5 text-teal-900">
+                  <Activity className="w-4 h-4 text-teal-700" />
+                  Clinical Impression & Prognosis
+                </h5>
+                <p className="text-teal-900 leading-relaxed">
+                  {editingAssessment.clinicalImpression}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2: PATIENT RECOVERY PROGRESS (Editable by Therapist) */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    Patient Recovery Progress & Milestones
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Current pain scores, active flexion ROM, extension lag, and milestone status
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditProgressModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm w-fit"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Update Recovery Progress</span>
+              </button>
+            </div>
+
+            {/* Current Metrics KPI Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              {/* Pain score */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-slate-500 font-semibold block text-[11px]">Current Pain Level</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-slate-900">{currentProgress.painScore} / 10</span>
+                  <span className="text-xs font-bold text-emerald-600">
+                    {currentProgress.painScore <= 3 ? 'Mild' : currentProgress.painScore <= 6 ? 'Moderate' : 'Severe'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">NPRS score during routine</p>
+              </div>
+
+              {/* Flexion ROM */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-slate-500 font-semibold block text-[11px]">Right Knee Flexion</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-slate-900">{currentProgress.flexionRomDeg}°</span>
+                  <span className="text-xs font-bold text-teal-600">Target 135°</span>
+                </div>
+                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-teal-500 h-full rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (currentProgress.flexionRomDeg / 135) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Extension Lag */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-slate-500 font-semibold block text-[11px]">Extension Lag</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-emerald-600">{currentProgress.extensionRomDeg}°</span>
+                  <span className="text-xs text-slate-500">(Resolved)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Full active extension locked</p>
+              </div>
+
+              {/* Rehabilitation Stage */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-slate-500 font-semibold block text-[11px]">Rehabilitation Stage</span>
+                <p className="font-black text-sm text-indigo-900 line-clamp-2">
+                  {currentProgress.rehabilitationPhase}
+                </p>
+                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full inline-block">
+                  Active Protocol
                 </span>
               </div>
-              <p className="text-slate-700">
-                <strong>Diagnosis:</strong> {SAMPLE_PATIENT.primaryDiagnosis}
-              </p>
-              <div className="flex gap-2 pt-2 border-t border-slate-200">
-                <button
-                  onClick={() => setActiveTab('assessments')}
-                  className="bg-white border border-slate-300 hover:bg-slate-50 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800"
-                >
-                  View Clinical Assessment
-                </button>
-                <button
-                  onClick={() => setActiveTab('soap_sessions')}
-                  className="bg-white border border-slate-300 hover:bg-slate-50 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800"
-                >
-                  View 4 SOAP Sessions
-                </button>
+            </div>
+
+            {/* Clinician Progress Notes */}
+            <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200 text-xs space-y-1">
+              <strong className="text-slate-900 block text-xs">Latest Clinician Progress Observation:</strong>
+              <p className="text-slate-700 leading-relaxed">{currentProgress.notes}</p>
+            </div>
+
+            {/* Recent Progress Measurement Log */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wide">
+                Recorded Progress Timeline
+              </h4>
+              <div className="space-y-2">
+                {progressMetrics.slice(-3).reverse().map((m, idx) => (
+                  <div
+                    key={m.id || idx}
+                    className="p-3 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-slate-900">{m.date}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-600">Pain: <strong>{m.painScore}/10</strong></span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-teal-700 font-semibold">Flexion: {m.flexionRomDeg}°</span>
+                    </div>
+                    <span className="text-slate-500 text-[11px] italic">
+                      {m.notes || 'Recorded during clinical evaluation'}
+                    </span>
+                  </div>
+                ))}
               </div>
+            </div>
+          </div>
+
+          {/* Quick Shortcuts to SOAP notes and Home Exercises */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              onClick={() => setActiveTab('prescribe_exercises')}
+              className="p-5 rounded-3xl border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Dumbbell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-slate-900">Prescribe Home Exercises (HEP)</h4>
+                  <p className="text-xs text-slate-500">Customize daily home routine for Vikram Malhotra</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </div>
+
+            <div
+              onClick={() => setActiveTab('soap_sessions')}
+              className="p-5 rounded-3xl border border-slate-200 bg-white hover:border-teal-300 hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-slate-900">View 4 Treatment SOAP Notes</h4>
+                  <p className="text-xs text-slate-500">Document new clinic visit or examine audit trail</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </div>
           </div>
         </div>
@@ -2390,6 +2824,413 @@ export const TherapistPortal: React.FC = () => {
             >
               Close Certificate Viewer
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 4: EDIT PATIENT CLINICAL ASSESSMENT & HISTORY            */}
+      {/* ============================================================== */}
+      {editAssessmentModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto border border-slate-100 p-5 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Edit Patient Clinical Assessment</h3>
+                  <p className="text-slate-500 text-[11px]">
+                    Subjective history, joint ROM, muscle strength & clinical impressions for {SAMPLE_PATIENT.fullName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditAssessmentModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {assessmentUpdateSuccess ? (
+              <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-base text-emerald-950">Assessment Synchronized with Firestore!</h4>
+                <p className="text-xs text-emerald-800">
+                  The clinical assessment record has been saved and updated across patient history.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveAssessment} className="space-y-4">
+                {/* 1. Subjective History */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-teal-800 pb-1 border-b border-slate-100 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-teal-600" />
+                    <span>1. Subjective History & Symptoms</span>
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Chief Complaint</label>
+                    <input
+                      type="text"
+                      required
+                      value={assessmentEditForm.chiefComplaint}
+                      onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, chiefComplaint: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">History of Illness / Surgical Timeline</label>
+                    <input
+                      type="text"
+                      required
+                      value={assessmentEditForm.historyOfIllness}
+                      onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, historyOfIllness: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Aggravating Factors</label>
+                      <input
+                        type="text"
+                        value={assessmentEditForm.aggravatingFactors}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, aggravatingFactors: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Relieving Factors</label>
+                      <input
+                        type="text"
+                        value={assessmentEditForm.relievingFactors}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, relievingFactors: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Medical / Surgical History</label>
+                      <textarea
+                        rows={2}
+                        value={assessmentEditForm.medicalHistory}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, medicalHistory: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Patient Recovery Goals</label>
+                      <textarea
+                        rows={2}
+                        value={assessmentEditForm.patientGoals}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, patientGoals: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Pain Intensity Score (NPRS 0-10): <span className="text-blue-600 font-bold">{assessmentEditForm.painIntensity}/10</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      value={assessmentEditForm.painIntensity}
+                      onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, painIntensity: Number(e.target.value) })}
+                      className="w-full accent-blue-600"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Objective ROM & Strength */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-teal-800 pb-1 border-b border-slate-100 flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-teal-600" />
+                    <span>2. Objective Examination (ROM & Strength)</span>
+                  </h4>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Active Flexion (°)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={160}
+                        value={assessmentEditForm.activeRomFlexion}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, activeRomFlexion: Number(e.target.value) })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Passive Flexion (°)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={160}
+                        value={assessmentEditForm.passiveRomFlexion}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, passiveRomFlexion: Number(e.target.value) })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Ext. Active (° lag)</label>
+                      <input
+                        type="number"
+                        min={-20}
+                        max={20}
+                        value={assessmentEditForm.activeRomExtension}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, activeRomExtension: Number(e.target.value) })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Ext. Passive (°)</label>
+                      <input
+                        type="number"
+                        min={-20}
+                        max={20}
+                        value={assessmentEditForm.passiveRomExtension}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, passiveRomExtension: Number(e.target.value) })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Quadriceps Strength Grade (MRC 0-5)</label>
+                      <select
+                        value={assessmentEditForm.quadStrengthGrade}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, quadStrengthGrade: Number(e.target.value) })}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-xl bg-white text-xs"
+                      >
+                        <option value={1}>Grade 1 - Flicker / trace contraction</option>
+                        <option value={2}>Grade 2 - Movement with gravity eliminated</option>
+                        <option value={3}>Grade 3 - Movement against gravity only</option>
+                        <option value={4}>Grade 4 - Movement against moderate resistance</option>
+                        <option value={5}>Grade 5 - Full normal strength</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Hamstrings Strength Grade (MRC 0-5)</label>
+                      <select
+                        value={assessmentEditForm.hamstringStrengthGrade}
+                        onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, hamstringStrengthGrade: Number(e.target.value) })}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-xl bg-white text-xs"
+                      >
+                        <option value={1}>Grade 1 - Flicker</option>
+                        <option value={2}>Grade 2 - Gravity eliminated</option>
+                        <option value={3}>Grade 3 - Against gravity</option>
+                        <option value={4}>Grade 4 - Moderate resistance</option>
+                        <option value={5}>Grade 5 - Normal strength</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Clinical Impression & Guidelines */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-teal-800 pb-1 border-b border-slate-100 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-teal-600" />
+                    <span>3. Clinical Impression & Precautions</span>
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Clinical Impression & Prognosis</label>
+                    <textarea
+                      rows={2}
+                      value={assessmentEditForm.clinicalImpression}
+                      onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, clinicalImpression: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Clinical Precautions & Restrictions</label>
+                    <textarea
+                      rows={2}
+                      value={assessmentEditForm.precautions}
+                      onChange={(e) => setAssessmentEditForm({ ...assessmentEditForm, precautions: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditAssessmentModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Save Assessment to Firestore</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 5: EDIT / UPDATE PATIENT RECOVERY PROGRESS               */}
+      {/* ============================================================== */}
+      {editProgressModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-100 p-5 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Update Patient Recovery Progress</h3>
+                  <p className="text-slate-500 text-[11px]">
+                    Record current milestones, ROM, pain and notes for {SAMPLE_PATIENT.fullName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditProgressModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {progressUpdateSuccess ? (
+              <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-base text-emerald-950">Patient Progress Updated!</h4>
+                <p className="text-xs text-emerald-800">
+                  New progress measurement saved to Firestore and recovery graphs updated.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProgress} className="space-y-4">
+                {/* Pain Score */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">Current Pain Level (NPRS)</label>
+                    <span className="font-black text-sm text-emerald-700">{currentProgress.painScore} / 10</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    value={currentProgress.painScore}
+                    onChange={(e) => setCurrentProgress({ ...currentProgress, painScore: Number(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                    <span>0: No Pain</span>
+                    <span>3: Mild</span>
+                    <span>6: Moderate</span>
+                    <span>10: Severe</span>
+                  </div>
+                </div>
+
+                {/* ROM Metrics */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Right Knee Flexion (°)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={150}
+                      required
+                      value={currentProgress.flexionRomDeg}
+                      onChange={(e) => setCurrentProgress({ ...currentProgress, flexionRomDeg: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    />
+                    <span className="text-[10px] text-slate-400">Target: 135° full flexion</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Extension Lag (°)</label>
+                    <input
+                      type="number"
+                      min={-10}
+                      max={20}
+                      required
+                      value={currentProgress.extensionRomDeg}
+                      onChange={(e) => setCurrentProgress({ ...currentProgress, extensionRomDeg: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    />
+                    <span className="text-[10px] text-slate-400">0° indicates full extension lock</span>
+                  </div>
+                </div>
+
+                {/* Rehabilitation Phase */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Current Rehabilitation Phase</label>
+                  <select
+                    value={currentProgress.rehabilitationPhase}
+                    onChange={(e) => setCurrentProgress({ ...currentProgress, rehabilitationPhase: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-800"
+                  >
+                    <option value="Phase I (Weeks 1-2) — Protection, Edema Control & Extension Restoration">
+                      Phase I (Weeks 1-2) — Protection & Edema Control
+                    </option>
+                    <option value="Phase II (Weeks 3-6) — Active Closed-Chain Strengthening">
+                      Phase II (Weeks 3-6) — Active Closed-Chain Strengthening
+                    </option>
+                    <option value="Phase III (Weeks 7-12) — Dynamic Neuromuscular & Proprioceptive Retraining">
+                      Phase III (Weeks 7-12) — Dynamic Neuromuscular Retraining
+                    </option>
+                    <option value="Phase IV (Months 3-6) — Agility, Plyometrics & Return-to-Sport Assessment">
+                      Phase IV (Months 3-6) — Agility & Return-to-Sport
+                    </option>
+                  </select>
+                </div>
+
+                {/* Progress Notes */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Clinician Progress Notes & Recommendations</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={currentProgress.notes}
+                    onChange={(e) => setCurrentProgress({ ...currentProgress, notes: e.target.value })}
+                    placeholder="e.g., Patient displays good quadriceps recruitment with no joint line tenderness. Advanced to bilateral mini-squats."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditProgressModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Save Progress to Firestore</span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

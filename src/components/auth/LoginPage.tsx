@@ -348,18 +348,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     </button>
                   </div>
 
-                  {/* Practitioner Registration Link */}
-                  <div className="pt-2 text-center text-xs text-slate-600 border-t border-slate-100">
-                    <p>
-                      New practitioner?{' '}
+                  {/* Active Physiotherapy Registration Portal Card */}
+                  <div className="pt-3 border-t border-slate-100">
+                    <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Stethoscope className="w-4 h-4 text-emerald-700" />
+                          New Physiotherapy Registration Portal
+                        </span>
+                        <span className="text-[10px] bg-emerald-600 text-white font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Are you a licensed or graduate physiotherapist? Register with OTP mobile verification, council credentials or degree certificate, and CV upload connected to Firestore.
+                      </p>
                       <button
                         type="button"
                         onClick={() => onOpenRegister('register_pt')}
-                        className="font-bold text-emerald-600 hover:text-emerald-800"
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                       >
-                        Register as Physiotherapist (Experienced or Fresher)
+                        <span>Open Physiotherapy Registration Portal (OTP Verified)</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
-                    </p>
+                    </div>
                   </div>
                 </form>
               )}

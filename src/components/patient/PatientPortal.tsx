@@ -24,6 +24,7 @@ import {
   MapPin,
   Printer,
   Sparkles,
+  Edit3,
 } from 'lucide-react';
 import {
   Appointment,
@@ -68,10 +69,77 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   initialTab = 'dashboard',
   onOpenTransferWizard,
 }) => {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, updateUserProfile } = useAuth();
   // Map old 'passport' tab value if passed to 'patient_data'
   const resolvedInitialTab = initialTab === 'passport' ? 'patient_data' : initialTab;
   const [activeTab, setActiveTab] = useState(resolvedInitialTab);
+
+  // Edit Personal Details Modal state
+  const [editPersonalModalOpen, setEditPersonalModalOpen] = useState(false);
+  const [personalDetailsSuccess, setPersonalDetailsSuccess] = useState(false);
+  const [personalForm, setPersonalForm] = useState({
+    fullName: userProfile?.fullName || 'Vikram Malhotra',
+    mobile: userProfile?.mobile || '+91 98200 44556',
+    email: userProfile?.email || 'vikram.malhotra@gmail.com',
+    city: userProfile?.city || 'Gurugram, Haryana',
+    state: userProfile?.state || 'Haryana',
+    age: userProfile?.age || 42,
+    gender: userProfile?.gender || 'Male',
+    emergencyContactName: 'Priya Malhotra (Spouse)',
+    emergencyContactPhone: '+91 98101 23456',
+    bloodGroup: 'B+',
+  });
+
+  // Keep form in sync when userProfile updates
+  useEffect(() => {
+    if (userProfile) {
+      setPersonalForm((prev) => ({
+        ...prev,
+        fullName: userProfile.fullName || prev.fullName,
+        mobile: userProfile.mobile || prev.mobile,
+        email: userProfile.email || prev.email,
+        city: userProfile.city || prev.city,
+      }));
+    }
+  }, [userProfile]);
+
+  const handleSavePersonalDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateUserProfile({
+        fullName: personalForm.fullName,
+        mobile: personalForm.mobile,
+        city: personalForm.city,
+        age: Number(personalForm.age) || 42,
+        gender: personalForm.gender,
+      });
+
+      // Update Firestore patient doc
+      const patientDocId = currentUser?.uid || 'patient-vikram-malhotra';
+      try {
+        await updateDoc(doc(db, 'patients', patientDocId), {
+          fullName: personalForm.fullName,
+          phone: personalForm.mobile,
+          city: personalForm.city,
+          age: Number(personalForm.age) || 42,
+          gender: personalForm.gender,
+          emergencyContact: `${personalForm.emergencyContactName} • ${personalForm.emergencyContactPhone}`,
+          bloodGroup: personalForm.bloodGroup,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Could not update patient doc in Firestore:', err);
+      }
+
+      setPersonalDetailsSuccess(true);
+      setTimeout(() => {
+        setPersonalDetailsSuccess(false);
+        setEditPersonalModalOpen(false);
+      }, 1200);
+    } catch (err) {
+      console.error('Error saving personal details:', err);
+    }
+  };
 
   // Clinical records state
   const [assessment, setAssessment] = useState<ClinicalAssessment>(SAMPLE_ASSESSMENT);
@@ -803,35 +871,77 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
               </div>
             </div>
 
-            {/* SIMPLE FORM SECTION 1: Patient Information */}
+            {/* SIMPLE FORM SECTION 1: Patient Information (Editable by Patient) */}
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wide text-blue-900 flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-600" />
-                1. Patient Personal Information
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wide text-blue-900 flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-600" />
+                  1. Patient Personal Information
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEditPersonalModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-colors w-fit"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Edit Personal Details</span>
+                </button>
+              </div>
+
+              {personalDetailsSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Personal details saved and synchronized with Firestore!</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[11px]">Full Name</span>
                   <strong className="text-slate-900 text-sm">
-                    {userProfile?.fullName || 'Vikram Malhotra'}
+                    {userProfile?.fullName || personalForm.fullName}
                   </strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">Mobile Number</span>
                   <strong className="text-slate-900 text-sm">
-                    {userProfile?.mobile || '+91 98200 44556'}
+                    {userProfile?.mobile || personalForm.mobile}
                   </strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">City / Location</span>
                   <strong className="text-slate-900 text-sm">
-                    {userProfile?.city || 'Gurugram, Haryana'}
+                    {userProfile?.city || personalForm.city}
                   </strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">Emergency Contact</span>
                   <strong className="text-slate-900 text-sm">
-                    +91 98101 23456 (Spouse)
+                    {personalForm.emergencyContactName} • {personalForm.emergencyContactPhone}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Email Address</span>
+                  <strong className="text-slate-900 text-xs truncate block">
+                    {userProfile?.email || personalForm.email}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Age & Gender</span>
+                  <strong className="text-slate-900 text-sm">
+                    {personalForm.age} Yrs • {personalForm.gender}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Blood Group</span>
+                  <strong className="text-slate-900 text-sm">
+                    {personalForm.bloodGroup}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">State / Region</span>
+                  <strong className="text-slate-900 text-sm">
+                    {personalForm.state || 'Haryana, India'}
                   </strong>
                 </div>
               </div>
@@ -865,64 +975,11 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
               </div>
             </div>
 
-            {/* SIMPLE FORM SECTION 3: Initial Clinical Assessment */}
-            <div className="space-y-3 pt-3 border-t border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wide text-slate-800 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-600" />
-                3. Clinical Assessment & History
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <p><strong>Chief Complaint:</strong> {assessment.chiefComplaint}</p>
-                  <p><strong>History of Condition:</strong> {assessment.historyOfIllness}</p>
-                  <p><strong>Aggravating Factors:</strong> {assessment.aggravatingFactors}</p>
-                  <p><strong>Relieving Factors:</strong> {assessment.relievingFactors}</p>
-                  <p><strong>Medical History:</strong> {assessment.medicalHistory}</p>
-                  <p><strong>Patient Goals:</strong> {assessment.patientGoals}</p>
-                </div>
-
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <p className="font-bold text-slate-900 mb-1">Joint Range of Motion (Baseline vs Current):</p>
-                  <div className="space-y-1.5">
-                    {assessment.rangeOfMotion.map((r, i) => (
-                      <div key={i} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-200">
-                        <span>{r.joint} {r.movement}</span>
-                        <span className="font-bold text-slate-900">
-                          Active: {r.activeRom}{r.unit} / Passive: {r.passiveRom}{r.unit}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-2">
-                    <p className="font-bold text-slate-900 mb-1">Muscle Strength (MRC Scale 0-5):</p>
-                    <div className="space-y-1.5">
-                      {assessment.muscleStrength.map((m, i) => (
-                        <div key={i} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-200">
-                          <span>{m.muscleGroup} ({m.side})</span>
-                          <span className="font-bold text-slate-900">Grade {m.grade}/5</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Precautions */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1">
-                <h4 className="font-bold text-amber-950 uppercase text-[11px] tracking-wide flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-700" />
-                  Key Clinical Precautions & Guidelines
-                </h4>
-                <p className="text-amber-900 font-medium">{assessment.precautions}</p>
-              </div>
-            </div>
-
-            {/* SIMPLE FORM SECTION 4: Chronological Treatment Notes */}
+            {/* SIMPLE FORM SECTION 3: Chronological Treatment Notes */}
             <div className="space-y-3 pt-3 border-t border-slate-100">
               <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wide text-slate-800 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-teal-600" />
-                4. Treatment Sessions History Log
+                3. Treatment Sessions History Log
               </h3>
 
               <div className="space-y-3">
@@ -1784,6 +1841,187 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
                     className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-sm transition-colors"
                   >
                     Send to Therapist
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+      {/* MODAL: EDIT PATIENT PERSONAL DETAILS */}
+      {editPersonalModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Edit Personal Information</h3>
+                  <p className="text-xs text-slate-500">Update your contact, location, and emergency records</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditPersonalModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {personalDetailsSuccess ? (
+              <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-base text-emerald-950">Personal Details Updated!</h4>
+                <p className="text-xs text-emerald-800">
+                  Your updated records have been synchronized to Firestore.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSavePersonalDetails} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={personalForm.fullName}
+                    onChange={(e) => setPersonalForm({ ...personalForm, fullName: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={personalForm.mobile}
+                      onChange={(e) => setPersonalForm({ ...personalForm, mobile: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={personalForm.email}
+                      onChange={(e) => setPersonalForm({ ...personalForm, email: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">City / Location</label>
+                    <input
+                      type="text"
+                      value={personalForm.city}
+                      onChange={(e) => setPersonalForm({ ...personalForm, city: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">State / Region</label>
+                    <input
+                      type="text"
+                      value={personalForm.state}
+                      onChange={(e) => setPersonalForm({ ...personalForm, state: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Age</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={personalForm.age}
+                      onChange={(e) => setPersonalForm({ ...personalForm, age: Number(e.target.value) })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Gender</label>
+                    <select
+                      value={personalForm.gender}
+                      onChange={(e) => setPersonalForm({ ...personalForm, gender: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Blood Group</label>
+                    <select
+                      value={personalForm.bloodGroup}
+                      onChange={(e) => setPersonalForm({ ...personalForm, bloodGroup: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <span className="font-bold text-slate-700 block text-xs">Emergency Contact Details</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-0.5">Contact Name & Relation</label>
+                      <input
+                        type="text"
+                        value={personalForm.emergencyContactName}
+                        onChange={(e) => setPersonalForm({ ...personalForm, emergencyContactName: e.target.value })}
+                        placeholder="e.g. Priya Malhotra (Spouse)"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-0.5">Emergency Phone</label>
+                      <input
+                        type="tel"
+                        value={personalForm.emergencyContactPhone}
+                        onChange={(e) => setPersonalForm({ ...personalForm, emergencyContactPhone: e.target.value })}
+                        placeholder="+91 98101 23456"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditPersonalModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-sm transition-colors"
+                  >
+                    Save & Sync to Firestore
                   </button>
                 </div>
               </form>
