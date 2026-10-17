@@ -216,9 +216,18 @@ export const AdminPortal: React.FC = () => {
                 {pendingVerificationList.map((pt) => (
                   <div key={pt.id} className="p-5 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-3 text-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-100">
-                      <div>
+                      <div className="flex items-center gap-2">
                         <span className="font-bold text-sm text-slate-900">{pt.fullName}</span>
-                        <span className="text-[10px] font-bold uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded ml-2">
+                        {pt.practitionerLevel === 'fresher' ? (
+                          <span className="text-[10px] font-bold uppercase bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full">
+                            🌱 Fresher Graduate
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                            🎓 Experienced PT
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded ml-1">
                           Pending Review
                         </span>
                       </div>
@@ -230,16 +239,24 @@ export const AdminPortal: React.FC = () => {
                         <span className="text-slate-500 block text-[11px]">Qualification:</span>
                         <strong className="text-slate-900">{pt.qualification}</strong>
                         <p className="text-slate-600">{pt.college} ({pt.graduationYear})</p>
+                        {pt.practitionerLevel === 'fresher' && pt.supervisingTherapist && (
+                          <p className="text-[11px] text-teal-700 font-semibold mt-1">
+                            Mentor: {pt.supervisingTherapist}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <span className="text-slate-500 block text-[11px]">Council Registration #:</span>
                         <strong className="text-teal-800">{pt.registrationNumber}</strong>
                         <p className="text-slate-600">{pt.registrationAuthority}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Cert: <strong className="text-slate-700">{pt.certificateName || 'License_Cert.pdf'}</strong>
+                        </p>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[11px]">Experience & Practice:</span>
-                        <strong>{pt.experienceYears} Years</strong>
-                        <p className="text-slate-600">{pt.specializations.join(', ')}</p>
+                        <span className="text-slate-500 block text-[11px]">CV on File:</span>
+                        <strong className="text-indigo-900 truncate block">{pt.cvFileName || 'Resume.pdf'}</strong>
+                        <p className="text-slate-600 text-[11px] line-clamp-2 mt-0.5">{pt.cvSummary || pt.bio}</p>
                       </div>
                     </div>
 
@@ -277,8 +294,20 @@ export const AdminPortal: React.FC = () => {
                 {verifiedList.map((pt) => (
                   <div key={pt.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
                     <div>
-                      <p className="font-bold text-slate-900">{pt.fullName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-slate-900">{pt.fullName}</p>
+                        {pt.practitionerLevel === 'fresher' ? (
+                          <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">
+                            Fresher
+                          </span>
+                        ) : (
+                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                            Experienced
+                          </span>
+                        )}
+                      </div>
                       <p className="text-slate-500">{pt.qualification} • Reg: {pt.registrationNumber}</p>
+                      <p className="text-[11px] text-teal-700">CV: {pt.cvFileName || 'Resume.pdf'}</p>
                     </div>
                     <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
                       Verified

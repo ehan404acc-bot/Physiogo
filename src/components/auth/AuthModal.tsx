@@ -13,6 +13,7 @@ import {
   MapPin,
   Building,
   Award,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -64,6 +65,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     email: '',
     password: '',
     phone: '',
+    practitionerLevel: 'experienced' as 'experienced' | 'fresher',
     city: 'Gurugram',
     state: 'Haryana',
     qualification: 'Master of Physiotherapy (Orthopedics)',
@@ -72,10 +74,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     experienceYears: 6,
     registrationNumber: 'DCPTOT/2018/8892',
     registrationAuthority: 'Delhi Council for Physiotherapy',
+    certificateName: 'State Council Practice License Certificate (DCPTOT/2018/8892.pdf)',
+    cvFileName: 'Physiotherapist_Curriculum_Vitae.pdf',
+    cvSummary: 'Clinical specialist in rehabilitation, manual therapy, and exercise prescription.',
+    supervisingTherapist: 'Dr. Ananya Sharma, MPT',
     specializations: ['Orthopedics', 'Sports Rehabilitation', 'Post-Op Care'],
     consultationFee: 1000,
     sessionDurationMinutes: 45,
-    clinicAddress: 'PhysioGo Clinic Center',
+    clinicAddress: 'PhysioGo Clinic Center, Sector 44, Gurugram',
     serviceAreas: ['Gurugram', 'South Delhi'],
     offersHomeVisit: true,
     offersClinicVisit: true,
@@ -512,34 +518,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="space-y-4">
               <div>
                 <h3 className="text-xl font-black text-slate-900">Physiotherapist Registration</h3>
-                <p className="text-xs text-slate-500">Step {ptStep} of 4: Professional verification</p>
+                <p className="text-xs text-slate-500">
+                  Step {ptStep} of 4: {ptStep === 1 ? 'Account & Category' : ptStep === 2 ? 'Credentials & Certificate' : ptStep === 3 ? 'Curriculum Vitae (CV) & Services' : 'Review & Submit'}
+                </p>
               </div>
 
               <form onSubmit={handlePtRegister} className="space-y-3">
                 {ptStep === 1 && (
                   <>
+                    {/* Practitioner Category Selection */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Full Name & Degree</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Register As:
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPtData({ ...ptData, practitionerLevel: 'experienced' })}
+                          className={`p-3 rounded-2xl border text-left transition-all ${
+                            ptData.practitionerLevel === 'experienced'
+                              ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 shadow-sm ring-1 ring-emerald-500'
+                              : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="font-bold text-xs block text-slate-900">🎓 Experienced Therapist</span>
+                          <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">
+                            2+ years clinical practice & state council certificate
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPtData({ ...ptData, practitionerLevel: 'fresher' })}
+                          className={`p-3 rounded-2xl border text-left transition-all ${
+                            ptData.practitionerLevel === 'fresher'
+                              ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 shadow-sm ring-1 ring-emerald-500'
+                              : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="font-bold text-xs block text-slate-900">🌱 Fresher Graduate</span>
+                          <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">
+                            Recent BPT graduate / practicing under senior mentorship
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Full Name & Professional Title</label>
                       <input
                         type="text"
                         required
                         value={ptData.fullName}
                         onChange={(e) => setPtData({ ...ptData, fullName: e.target.value })}
-                        placeholder="Dr. Rajesh Verma, MPT"
+                        placeholder={ptData.practitionerLevel === 'experienced' ? 'Dr. Rajesh Verma, MPT' : 'Dr. Sneha Kulkarni, BPT'}
                         className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Professional Email</label>
                       <input
                         type="email"
                         required
                         value={ptData.email}
                         onChange={(e) => setPtData({ ...ptData, email: e.target.value })}
-                        placeholder="rajesh.verma@physiogo.care"
+                        placeholder="doctor@physiogo.care"
                         className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
+
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
                       <input
@@ -551,65 +599,228 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Contact Phone</label>
+                      <input
+                        type="tel"
+                        required
+                        value={ptData.phone}
+                        onChange={(e) => setPtData({ ...ptData, phone: e.target.value })}
+                        placeholder="+91 98111 22334"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
                   </>
                 )}
 
                 {ptStep === 2 && (
                   <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Council Registration Number</label>
-                      <input
-                        type="text"
-                        required
-                        value={ptData.registrationNumber}
-                        onChange={(e) => setPtData({ ...ptData, registrationNumber: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Registration Authority</label>
-                      <input
-                        type="text"
-                        required
-                        value={ptData.registrationAuthority}
-                        onChange={(e) => setPtData({ ...ptData, registrationAuthority: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                      />
-                    </div>
+                    {ptData.practitionerLevel === 'experienced' ? (
+                      /* Experienced Therapist Credentials */
+                      <div className="space-y-3">
+                        <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-emerald-900">
+                          <strong>Experienced Therapist Verification:</strong> Please provide your State Council Registration and Practice Certificate details.
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Council Registration Number</label>
+                          <input
+                            type="text"
+                            required
+                            value={ptData.registrationNumber}
+                            onChange={(e) => setPtData({ ...ptData, registrationNumber: e.target.value })}
+                            placeholder="e.g. DCPTOT/2018/8892"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Registration Authority / Council</label>
+                          <input
+                            type="text"
+                            required
+                            value={ptData.registrationAuthority}
+                            onChange={(e) => setPtData({ ...ptData, registrationAuthority: e.target.value })}
+                            placeholder="Delhi Council for Physiotherapy (DCPTOT) or State Council"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Years of Clinical Experience</label>
+                          <input
+                            type="number"
+                            required
+                            min={2}
+                            max={40}
+                            value={ptData.experienceYears}
+                            onChange={(e) => setPtData({ ...ptData, experienceYears: Number(e.target.value) })}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Practice Certificate Document
+                          </label>
+                          <input
+                            type="text"
+                            value={ptData.certificateName}
+                            onChange={(e) => setPtData({ ...ptData, certificateName: e.target.value })}
+                            placeholder="e.g. DCPTOT_Practice_License_2026.pdf"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-slate-50 font-mono text-xs"
+                          />
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Certificate document will be verified by the admin before full public listing.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Fresher Therapist Credentials */
+                      <div className="space-y-3">
+                        <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200 text-xs text-blue-900">
+                          <strong>Fresher Graduate Registration:</strong> Registered as entry-level practitioner practicing under senior clinical mentorship.
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Graduation College / Institute</label>
+                          <input
+                            type="text"
+                            required
+                            value={ptData.college}
+                            onChange={(e) => setPtData({ ...ptData, college: e.target.value })}
+                            placeholder="e.g. Department of Rehabilitation, Delhi University"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Graduation Year</label>
+                          <input
+                            type="number"
+                            required
+                            min={2020}
+                            max={2026}
+                            value={ptData.graduationYear}
+                            onChange={(e) => setPtData({ ...ptData, graduationYear: Number(e.target.value) })}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Provisional Registration / Degree Certificate</label>
+                          <input
+                            type="text"
+                            value={ptData.certificateName}
+                            onChange={(e) => setPtData({ ...ptData, certificateName: e.target.value })}
+                            placeholder="e.g. BPT_Provisional_Degree_Certificate.pdf"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-slate-50 font-mono text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Senior Supervising Clinician / Hospital (Mentorship)</label>
+                          <input
+                            type="text"
+                            value={ptData.supervisingTherapist}
+                            onChange={(e) => setPtData({ ...ptData, supervisingTherapist: e.target.value })}
+                            placeholder="e.g. Dr. Ananya Sharma, MPT / Safdarjung Hospital"
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
                 {ptStep === 3 && (
                   <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Consultation Fee (₹)</label>
-                      <input
-                        type="number"
-                        required
-                        value={ptData.consultationFee}
-                        onChange={(e) => setPtData({ ...ptData, consultationFee: Number(e.target.value) })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Clinic Address</label>
-                      <input
-                        type="text"
-                        required
-                        value={ptData.clinicAddress}
-                        onChange={(e) => setPtData({ ...ptData, clinicAddress: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                      />
+                    {/* CV / Resume Attachment & Services */}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Curriculum Vitae (CV / Resume)
+                          </label>
+                          <span className="text-[11px] text-teal-700 font-semibold">Attached to Practitioner Profile</span>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={ptData.cvFileName}
+                          onChange={(e) => setPtData({ ...ptData, cvFileName: e.target.value })}
+                          placeholder="e.g. Dr_Rajesh_Verma_Curriculum_Vitae.pdf"
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-slate-50 font-mono text-xs"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Your CV will be accessible directly in your therapist portal and verification portfolio.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">CV Summary & Key Clinical Experience</label>
+                        <textarea
+                          rows={2}
+                          value={ptData.cvSummary}
+                          onChange={(e) => setPtData({ ...ptData, cvSummary: e.target.value })}
+                          placeholder="Brief overview of clinical rotations, certifications, and special interests..."
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Consultation Fee (₹)</label>
+                          <input
+                            type="number"
+                            required
+                            value={ptData.consultationFee}
+                            onChange={(e) => setPtData({ ...ptData, consultationFee: Number(e.target.value) })}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Practice City</label>
+                          <input
+                            type="text"
+                            required
+                            value={ptData.city}
+                            onChange={(e) => setPtData({ ...ptData, city: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Clinic Center Address</label>
+                        <input
+                          type="text"
+                          required
+                          value={ptData.clinicAddress}
+                          onChange={(e) => setPtData({ ...ptData, clinicAddress: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
 
                 {ptStep === 4 && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-900 space-y-2">
-                    <p className="font-bold text-sm">Review & Submit for Verification</p>
-                    <p>Name: {ptData.fullName}</p>
-                    <p>Council Reg: {ptData.registrationNumber}</p>
-                    <p>Fee: ₹{ptData.consultationFee}</p>
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
+                    <div className="flex items-center gap-2 pb-2 border-b border-emerald-200">
+                      <ShieldCheck className="w-5 h-5 text-emerald-700" />
+                      <h4 className="font-bold text-sm text-slate-900">Application Review</h4>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p><strong>Practitioner Level:</strong> {ptData.practitionerLevel === 'experienced' ? '🎓 Experienced Physiotherapist (Council Certified)' : '🌱 Fresher / Graduate Physiotherapist (Supervised Mentorship)'}</p>
+                      <p><strong>Name:</strong> {ptData.fullName}</p>
+                      <p><strong>Email:</strong> {ptData.email}</p>
+                      <p><strong>Certificate on file:</strong> {ptData.certificateName}</p>
+                      <p><strong>CV Attached:</strong> <span className="font-mono bg-white px-2 py-0.5 rounded border border-emerald-200">{ptData.cvFileName}</span></p>
+                      <p><strong>Consultation Fee:</strong> ₹{ptData.consultationFee}</p>
+                    </div>
                   </div>
                 )}
 
@@ -628,7 +839,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     disabled={loading}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-sm disabled:opacity-50"
                   >
-                    {loading ? 'Submitting...' : ptStep < 4 ? 'Continue Next Step' : 'Submit Application'}
+                    {loading ? 'Submitting...' : ptStep < 4 ? 'Continue Next Step' : 'Submit Application & Create Account'}
                   </button>
                 </div>
               </form>

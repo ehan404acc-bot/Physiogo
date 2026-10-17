@@ -46,8 +46,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveView }) => {
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveView('equipment')} className="hover:text-teal-300 transition-colors">
-                  Equipment Marketplace
+                <button onClick={() => setActiveView('rental_portal')} className="hover:text-teal-300 transition-colors">
+                  Equipment Rental Portal
                 </button>
               </li>
               <li>

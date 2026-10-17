@@ -39,7 +39,7 @@ interface AuthContextType {
   registerPhysiotherapist: (details: any) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  switchDemoRole: (role: 'patient' | 'therapist_ananya' | 'therapist_rajesh' | 'admin') => Promise<void>;
+  switchDemoRole: (role: 'patient' | 'therapist_ananya' | 'therapist_rajesh' | 'therapist_sneha' | 'admin') => Promise<void>;
   seedInitialDataIfEmpty: () => Promise<void>;
   isDemoUser: boolean;
 }
@@ -364,15 +364,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: details.email,
         phone: details.phone,
         qualification: details.qualification,
+        practitionerLevel: details.practitionerLevel || 'experienced',
         college: details.college,
         graduationYear: Number(details.graduationYear) || 2020,
-        experienceYears: Number(details.experienceYears) || 3,
+        experienceYears: Number(details.experienceYears) || (details.practitionerLevel === 'fresher' ? 1 : 4),
         registrationNumber: details.registrationNumber || 'PENDING-REG',
         registrationAuthority: details.registrationAuthority || 'State Council',
         verificationStatus: 'pending', // Pending Admin verification
         specializations: details.specializations || ['General Physiotherapy'],
-        languages: details.languages || ['English'],
-        consultationFee: Number(details.consultationFee) || 800,
+        languages: details.languages || ['English', 'Hindi'],
+        consultationFee: Number(details.consultationFee) || (details.practitionerLevel === 'fresher' ? 700 : 1000),
         sessionDurationMinutes: 45,
         clinicAddress: details.clinicAddress || '',
         serviceAreas: details.serviceAreas || [details.city || 'City Center'],
@@ -381,8 +382,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         offersOnline: !!details.offersOnline,
         rating: 0,
         totalReviews: 0,
-        bio: details.bio || 'Qualified Physiotherapist awaiting document verification.',
-        certificateUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=400',
+        bio: details.bio || 'Physiotherapist registered on PhysioGo.',
+        certificateName: details.certificateName || (details.practitionerLevel === 'fresher' ? 'Provisional Council Registration & BPT Degree' : 'State Council Practice License Certificate'),
+        certificateUrl: details.certificateUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=400',
+        cvFileName: details.cvFileName || (details.practitionerLevel === 'fresher' ? 'Fresher_Physiotherapist_Resume.pdf' : 'Physiotherapist_Curriculum_Vitae.pdf'),
+        cvUrl: details.cvUrl || 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&q=80&w=600',
+        cvSummary: details.cvSummary || (details.practitionerLevel === 'fresher' ? 'Recent graduate practicing under clinical supervision with hospital internship training.' : 'Experienced clinician specializing in evidence-based musculoskeletal and sports rehabilitation.'),
+        supervisingTherapist: details.supervisingTherapist || '',
         createdAt: new Date().toISOString(),
       };
 
@@ -421,7 +427,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Switch demo persona instantly to test workflows
-  const switchDemoRole = async (demoTarget: 'patient' | 'therapist_ananya' | 'therapist_rajesh' | 'admin') => {
+  const switchDemoRole = async (demoTarget: 'patient' | 'therapist_ananya' | 'therapist_rajesh' | 'therapist_sneha' | 'admin') => {
     setLoading(true);
     setIsDemoUser(true);
     if (demoTarget === 'patient') {
@@ -454,6 +460,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } else if (demoTarget === 'therapist_rajesh') {
       const pt = INITIAL_PHYSIOTHERAPISTS[1];
+      setCurrentUser({
+        uid: pt.uid,
+        email: pt.email,
+        displayName: pt.fullName,
+      });
+      setUserProfile({
+        uid: pt.uid,
+        email: pt.email,
+        fullName: pt.fullName,
+        role: 'physiotherapist',
+        createdAt: pt.createdAt,
+      });
+    } else if (demoTarget === 'therapist_sneha') {
+      const pt = INITIAL_PHYSIOTHERAPISTS[2]; // Dr. Sneha Kulkarni, BPT - Fresher
       setCurrentUser({
         uid: pt.uid,
         email: pt.email,

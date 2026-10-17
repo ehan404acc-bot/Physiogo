@@ -16,6 +16,7 @@ export interface UserProfile {
 }
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
+export type PractitionerLevel = 'experienced' | 'fresher';
 
 export interface Physiotherapist {
   id: string;
@@ -25,6 +26,7 @@ export interface Physiotherapist {
   phone?: string;
   photoUrl?: string;
   qualification: string;
+  practitionerLevel?: PractitionerLevel; // 'experienced' | 'fresher'
   college?: string;
   graduationYear?: number;
   additionalQualifications?: string[];
@@ -45,7 +47,12 @@ export interface Physiotherapist {
   totalReviews: number;
   bio: string;
   verificationNotes?: string;
+  certificateName?: string;
   certificateUrl?: string;
+  cvFileName?: string;
+  cvUrl?: string;
+  cvSummary?: string;
+  supervisingTherapist?: string;
   idProofUrl?: string;
   createdAt: string;
 }

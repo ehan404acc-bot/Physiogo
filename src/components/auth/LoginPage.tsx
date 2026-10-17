@@ -357,7 +357,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                         onClick={() => onOpenRegister('register_pt')}
                         className="font-bold text-emerald-600 hover:text-emerald-800"
                       >
-                        Join as Verified Physiotherapist
+                        Register as Physiotherapist (Experienced or Fresher)
                       </button>
                     </p>
                   </div>

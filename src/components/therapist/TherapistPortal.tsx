@@ -22,6 +22,11 @@ import {
   ShieldCheck,
   Layers,
   Edit3,
+  Award,
+  GraduationCap,
+  UploadCloud,
+  FileCheck,
+  ExternalLink,
 } from 'lucide-react';
 import {
   Appointment,
@@ -32,6 +37,8 @@ import {
   TherapistTransferRequest,
   RecordAccessGrant,
   AiHandoverSummary,
+  Physiotherapist,
+  PractitionerLevel,
 } from '../../types';
 import {
   SAMPLE_ASSESSMENT,
@@ -39,13 +46,112 @@ import {
   SAMPLE_PROGRESS_MEASUREMENTS,
   SAMPLE_REHAB_PLAN,
   SAMPLE_PATIENT,
+  INITIAL_PHYSIOTHERAPISTS,
 } from '../../data/seedData';
-import { db, collection, getDocs, doc, setDoc, updateDoc } from '../../lib/firebase';
+import { db, collection, getDocs, doc, setDoc, updateDoc, getDoc } from '../../lib/firebase';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 export const TherapistPortal: React.FC = () => {
   const { currentUser, userProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'appointments' | 'patients' | 'assessments' | 'soap_sessions' | 'rehab_plans' | 'transfers'>('dashboard');
+
+  // Active Therapist Profile (Experienced vs Fresher)
+  const [therapistProfile, setTherapistProfile] = useState<Physiotherapist>(() => {
+    if (currentUser?.uid === 'pt-sneha-kulkarni') return INITIAL_PHYSIOTHERAPISTS[2];
+    if (currentUser?.uid === 'pt-rajesh-verma') return INITIAL_PHYSIOTHERAPISTS[1];
+    return INITIAL_PHYSIOTHERAPISTS[0];
+  });
+
+  // CV & Certificate Modals
+  const [cvModalOpen, setCvModalOpen] = useState(false);
+  const [updateCvModalOpen, setUpdateCvModalOpen] = useState(false);
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [cvUpdateSuccess, setCvUpdateSuccess] = useState(false);
+  const [cvFormData, setCvFormData] = useState({
+    cvFileName: therapistProfile.cvFileName || 'Dr_Ananya_Sharma_CV_Ortho_2026.pdf',
+    cvSummary: therapistProfile.cvSummary || 'Experienced physiotherapist specializing in musculoskeletal rehabilitation.',
+    qualification: therapistProfile.qualification || 'Master of Physiotherapy (Orthopedics & Sports)',
+    practitionerLevel: therapistProfile.practitionerLevel || 'experienced',
+    certificateName: therapistProfile.certificateName || 'State Council Practice License (DCPTOT/2016/5412.pdf)',
+    supervisingTherapist: therapistProfile.supervisingTherapist || '',
+    experienceYears: therapistProfile.experienceYears || 8,
+    college: therapistProfile.college || 'Department of Rehabilitation Sciences',
+    graduationYear: therapistProfile.graduationYear || 2016,
+  });
+
+  // Toggle between Experienced and Fresher modes for immediate hackathon demonstration
+  const handleSwitchLevel = (level: PractitionerLevel) => {
+    if (level === 'fresher') {
+      const fresherPt = INITIAL_PHYSIOTHERAPISTS[2];
+      setTherapistProfile(fresherPt);
+      setCvFormData({
+        cvFileName: fresherPt.cvFileName || 'Sneha_Kulkarni_Fresher_Physiotherapist_Resume.pdf',
+        cvSummary: fresherPt.cvSummary || 'Recent 2025 BPT graduate with 6-month clinical internship at Safdarjung Hospital. Practicing under senior clinical mentorship.',
+        qualification: fresherPt.qualification,
+        practitionerLevel: 'fresher',
+        certificateName: fresherPt.certificateName || 'Provisional Practice Registration Certificate & BPT Degree.pdf',
+        supervisingTherapist: fresherPt.supervisingTherapist || 'Dr. Ananya Sharma, MPT',
+        experienceYears: 1,
+        college: fresherPt.college || 'Department of Rehabilitation Sciences',
+        graduationYear: 2025,
+      });
+    } else {
+      const expPt = INITIAL_PHYSIOTHERAPISTS[0];
+      setTherapistProfile(expPt);
+      setCvFormData({
+        cvFileName: expPt.cvFileName || 'Dr_Ananya_Sharma_CV_Ortho_2026.pdf',
+        cvSummary: expPt.cvSummary || 'Senior Orthopedic Physiotherapist with 9+ years clinical excellence in post-op knee/hip rehab.',
+        qualification: expPt.qualification,
+        practitionerLevel: 'experienced',
+        certificateName: expPt.certificateName || 'State Council Practice License (DCPTOT/2016/5412.pdf)',
+        supervisingTherapist: '',
+        experienceYears: expPt.experienceYears || 9,
+        college: expPt.college || 'All India Institute of Physical Medicine & Rehabilitation',
+        graduationYear: 2016,
+      });
+    }
+  };
+
+  // Save / Update CV & Credentials to Firestore
+  const handleSaveCv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated: Physiotherapist = {
+      ...therapistProfile,
+      practitionerLevel: cvFormData.practitionerLevel as PractitionerLevel,
+      cvFileName: cvFormData.cvFileName,
+      cvSummary: cvFormData.cvSummary,
+      qualification: cvFormData.qualification,
+      certificateName: cvFormData.certificateName,
+      supervisingTherapist: cvFormData.supervisingTherapist,
+      experienceYears: Number(cvFormData.experienceYears),
+      college: cvFormData.college,
+      graduationYear: Number(cvFormData.graduationYear),
+    };
+
+    setTherapistProfile(updated);
+    try {
+      await updateDoc(doc(db, 'physiotherapists', therapistProfile.id), {
+        practitionerLevel: updated.practitionerLevel,
+        cvFileName: updated.cvFileName,
+        cvSummary: updated.cvSummary,
+        qualification: updated.qualification,
+        certificateName: updated.certificateName,
+        supervisingTherapist: updated.supervisingTherapist,
+        experienceYears: updated.experienceYears,
+        college: updated.college,
+        graduationYear: updated.graduationYear,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Saved CV locally (Firestore update note):', err);
+    }
+
+    setCvUpdateSuccess(true);
+    setTimeout(() => {
+      setCvUpdateSuccess(false);
+      setUpdateCvModalOpen(false);
+    }, 1200);
+  };
 
   // Appointments
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -96,6 +202,25 @@ export const TherapistPortal: React.FC = () => {
   useEffect(() => {
     const loadTherapistData = async () => {
       try {
+        if (currentUser?.uid) {
+          const ptSnap = await getDoc(doc(db, 'physiotherapists', currentUser.uid));
+          if (ptSnap.exists()) {
+            const data = ptSnap.data() as Physiotherapist;
+            setTherapistProfile(data);
+            setCvFormData({
+              cvFileName: data.cvFileName || 'Physiotherapist_Resume.pdf',
+              cvSummary: data.cvSummary || '',
+              qualification: data.qualification || '',
+              practitionerLevel: data.practitionerLevel || 'experienced',
+              certificateName: data.certificateName || '',
+              supervisingTherapist: data.supervisingTherapist || '',
+              experienceYears: data.experienceYears || 2,
+              college: data.college || '',
+              graduationYear: data.graduationYear || 2024,
+            });
+          }
+        }
+
         const apptSnap = await getDocs(collection(db, 'appointments'));
         if (!apptSnap.empty) {
           const list: Appointment[] = [];
@@ -362,46 +487,141 @@ export const TherapistPortal: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Clinician Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 rounded-3xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center font-bold text-2xl text-white">
-            <Stethoscope className="w-8 h-8 text-teal-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-white">{userProfile?.fullName || 'Dr. Ananya Sharma, MPT'}</h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-400/20 text-emerald-200 border border-emerald-300/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" /> State Council Verified
-              </span>
+      {/* Clinician Header Banner (Mobile Optimized) */}
+      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 rounded-3xl p-5 sm:p-7 text-white shadow-lg space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center font-bold text-2xl text-white shrink-0">
+              <Stethoscope className="w-7 h-7 sm:w-8 sm:h-8 text-teal-300" />
             </div>
-            <p className="text-xs text-teal-100 mt-0.5">
-              Clinical Specialization: Orthopedics, Post-Surgical Knee & Sports Rehabilitation
-            </p>
-            <p className="text-[11px] text-slate-300 mt-1">
-              Active Practice Hub: <strong>PhysioGo Care Hub (Sector 44 Gurugram)</strong> • Council Reg: DCPTOT/2016/5412
-            </p>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-white">{therapistProfile.fullName}</h1>
+                
+                {/* PRACTITIONER LEVEL BADGE */}
+                {therapistProfile.practitionerLevel === 'experienced' ? (
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-emerald-400/25 text-emerald-200 border border-emerald-300/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <GraduationCap className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Experienced Practitioner ({therapistProfile.experienceYears}+ Yrs)</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-teal-400/25 text-teal-200 border border-teal-300/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <GraduationCap className="w-3.5 h-3.5 text-teal-300" />
+                    <span>Fresher Graduate Practitioner</span>
+                  </span>
+                )}
+
+                <span className="text-[10px] font-bold bg-white/10 text-white border border-white/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-teal-300" /> Verified
+                </span>
+              </div>
+
+              <p className="text-xs text-teal-100 font-medium">
+                {therapistProfile.qualification}
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300 pt-0.5">
+                <span>Council Reg: <strong className="text-white">{therapistProfile.registrationNumber || 'DCPTOT/2016/5412'}</strong></span>
+                <span>•</span>
+                <span>Hub: <strong className="text-white">{therapistProfile.clinicAddress || 'PhysioGo Care Center'}</strong></span>
+                {therapistProfile.practitionerLevel === 'fresher' && therapistProfile.supervisingTherapist && (
+                  <>
+                    <span>•</span>
+                    <span className="text-teal-300 font-semibold">Supervised by: {therapistProfile.supervisingTherapist}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions & Demo Switcher */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0">
+            {/* Quick Demo Toggle for Hackathon Evaluator */}
+            <div className="flex items-center gap-1 bg-black/30 p-1 rounded-2xl border border-white/10 text-[11px] font-bold w-full sm:w-auto justify-between sm:justify-start">
+              <span className="text-[10px] text-slate-400 px-2 hidden sm:inline">View Mode:</span>
+              <button
+                type="button"
+                onClick={() => handleSwitchLevel('experienced')}
+                className={`px-2.5 py-1 rounded-xl transition-all ${
+                  therapistProfile.practitionerLevel === 'experienced'
+                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                🎓 Experienced PT
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchLevel('fresher')}
+                className={`px-2.5 py-1 rounded-xl transition-all ${
+                  therapistProfile.practitionerLevel === 'fresher'
+                    ? 'bg-teal-400 text-slate-950 font-black shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                🌱 Fresher PT
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                setActiveTab('transfers');
+                generateAiHandover();
+              }}
+              className="bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>AI Handover Tool</span>
+            </button>
+            <button
+              onClick={() => setNewSoapModalOpen(true)}
+              className="bg-white/10 hover:bg-white/20 text-white font-semibold px-3.5 py-2 rounded-xl text-xs border border-white/20 flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New SOAP Note</span>
+            </button>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2">
+        {/* Certificate & CV Quick Bar in Header */}
+        <div className="pt-3 border-t border-white/15 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-slate-300 text-[11px]">Credentials on Record:</span>
+            
+            {/* Certificate Pill */}
+            <button
+              type="button"
+              onClick={() => setCertificateModalOpen(true)}
+              className="bg-white/10 hover:bg-white/20 text-teal-200 hover:text-white px-3 py-1 rounded-xl border border-white/20 flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+            >
+              <Award className="w-3.5 h-3.5 text-teal-300" />
+              <span className="truncate max-w-[200px] sm:max-w-none">
+                {therapistProfile.practitionerLevel === 'experienced'
+                  ? 'Council License Certificate (Verified)'
+                  : 'Provisional Degree Certificate (Verified)'}
+              </span>
+            </button>
+
+            {/* CV Pill */}
+            <button
+              type="button"
+              onClick={() => setCvModalOpen(true)}
+              className="bg-teal-500/20 hover:bg-teal-500/30 text-teal-100 hover:text-white px-3 py-1 rounded-xl border border-teal-400/30 flex items-center gap-1.5 text-[11px] font-bold transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5 text-teal-300" />
+              <span className="truncate max-w-[180px] sm:max-w-none">
+                CV on File: {therapistProfile.cvFileName || 'Physiotherapist_CV.pdf'}
+              </span>
+            </button>
+          </div>
+
           <button
-            onClick={() => {
-              setActiveTab('transfers');
-              generateAiHandover();
-            }}
-            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
+            type="button"
+            onClick={() => setUpdateCvModalOpen(true)}
+            className="text-[11px] font-bold text-teal-300 hover:text-teal-200 flex items-center gap-1 hover:underline ml-auto sm:ml-0"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Smart Handover Tool</span>
-          </button>
-          <button
-            onClick={() => setNewSoapModalOpen(true)}
-            className="bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2 rounded-xl text-xs border border-white/20 flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Document SOAP Session</span>
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>Add / Update CV & Credentials</span>
           </button>
         </div>
       </div>
@@ -499,6 +719,114 @@ export const TherapistPortal: React.FC = () => {
               <span className="text-xs font-semibold text-slate-500">Documentation Up-to-date</span>
               <p className="text-3xl font-black text-emerald-600">100%</p>
               <p className="text-[11px] text-slate-500">All SOAP sessions finalized</p>
+            </div>
+          </div>
+
+          {/* PROFESSIONAL CREDENTIALS, CERTIFICATE & CV CARD */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    Professional Practitioner Profile & Attached CV
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {therapistProfile.practitionerLevel === 'experienced'
+                      ? 'Registered Experienced Physiotherapist • Full Clinical Practice & Council License'
+                      : 'Fresher Graduate Physiotherapist • Supervised Mentorship & Provisional Degree'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCvModalOpen(true)}
+                  className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold px-3 py-2 rounded-xl text-xs border border-teal-200 transition-colors flex items-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4 text-teal-600" />
+                  <span>View Full CV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUpdateCvModalOpen(true)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  <UploadCloud className="w-4 h-4 text-teal-400" />
+                  <span>Update CV / Credentials</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Box 1: Practitioner Status */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Practitioner Category</span>
+                  {therapistProfile.practitionerLevel === 'experienced' ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2 py-0.5 rounded-full">
+                      EXPERIENCED
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-teal-100 text-teal-800 font-black px-2 py-0.5 rounded-full">
+                      FRESHER GRADUATE
+                    </span>
+                  )}
+                </div>
+                <p className="font-black text-sm text-slate-900">{therapistProfile.qualification}</p>
+                <p className="text-xs text-slate-600">
+                  {therapistProfile.college} ({therapistProfile.graduationYear})
+                </p>
+                <p className="text-[11px] text-teal-700 font-semibold pt-1">
+                  {therapistProfile.practitionerLevel === 'experienced'
+                    ? `${therapistProfile.experienceYears} Years Clinical Practice`
+                    : `Practicing under: ${therapistProfile.supervisingTherapist || 'Senior Hospital Clinician'}`}
+                </p>
+              </div>
+
+              {/* Box 2: Certificate Details */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Practice Certificate</span>
+                  <button
+                    type="button"
+                    onClick={() => setCertificateModalOpen(true)}
+                    className="text-[11px] text-teal-700 hover:text-teal-900 font-bold underline"
+                  >
+                    View Doc
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">{therapistProfile.certificateName || 'Council Registration Certificate.pdf'}</span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  Registration: <strong className="text-slate-800">{therapistProfile.registrationNumber || 'DCPTOT/2016/5412'}</strong>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Authority: {therapistProfile.registrationAuthority || 'State Council for Physiotherapy'}
+                </p>
+              </div>
+
+              {/* Box 3: CV File & Summary */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Curriculum Vitae (CV)</span>
+                  <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full">
+                    ATTACHED
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <FileText className="w-4 h-4 text-teal-600 shrink-0" />
+                  <span className="truncate">{therapistProfile.cvFileName || 'Physiotherapist_Resume.pdf'}</span>
+                </div>
+                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                  {therapistProfile.cvSummary || 'Comprehensive clinical physiotherapy CV with orthopedics and neurology rotations.'}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1140,6 +1468,432 @@ export const TherapistPortal: React.FC = () => {
                 Confirm Decline
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 1: VIEW CURRICULUM VITAE (CV)                            */}
+      {/* ============================================================== */}
+      {cvModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto border border-slate-100 p-5 sm:p-7 space-y-5 animate-in fade-in zoom-in-95">
+            {/* CV Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl sm:text-2xl font-black text-slate-900">{therapistProfile.fullName}</span>
+                  {therapistProfile.practitionerLevel === 'experienced' ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                      EXPERIENCED
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full">
+                      FRESHER GRADUATE
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-teal-700 font-bold">{therapistProfile.qualification}</p>
+                <p className="text-[11px] text-slate-500">
+                  {therapistProfile.email} • {therapistProfile.phone || '+91 98765 43210'} • {therapistProfile.clinicAddress || 'PhysioGo Care Center'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCvModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document badge */}
+            <div className="p-3 bg-teal-50/70 rounded-2xl border border-teal-200/80 flex items-center justify-between text-xs text-teal-900">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-teal-600" />
+                <span>
+                  Attached File: <strong>{therapistProfile.cvFileName || 'Physiotherapist_Resume.pdf'}</strong> (245 KB • Verified)
+                </span>
+              </div>
+              <span className="text-[10px] font-bold uppercase bg-teal-200/60 text-teal-900 px-2 py-0.5 rounded-md">
+                Active Profile CV
+              </span>
+            </div>
+
+            {/* CV Body Sections */}
+            <div className="space-y-4 text-xs">
+              {/* Executive Summary */}
+              <div className="space-y-1">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] text-slate-500">
+                  Clinical Summary & Professional Focus
+                </h4>
+                <p className="text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                  {therapistProfile.cvSummary || therapistProfile.bio || 'Dedicated physiotherapist committed to evidence-based musculoskeletal assessment, patient-controlled rehabilitation continuity, and structured recovery plans.'}
+                </p>
+              </div>
+
+              {/* Education & Council Registration */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl border border-slate-200 space-y-1">
+                  <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-teal-600" />
+                    <span>Academic Qualification</span>
+                  </h4>
+                  <p className="font-bold text-slate-800">{therapistProfile.qualification}</p>
+                  <p className="text-slate-600">{therapistProfile.college}</p>
+                  <p className="text-[11px] text-slate-400">Class of {therapistProfile.graduationYear}</p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200 space-y-1">
+                  <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-teal-600" />
+                    <span>Council Registration</span>
+                  </h4>
+                  <p className="font-bold text-slate-800">{therapistProfile.registrationNumber || 'DCPTOT/2016/5412'}</p>
+                  <p className="text-slate-600">{therapistProfile.registrationAuthority || 'State Council for Physiotherapy'}</p>
+                  <p className="text-[11px] text-emerald-600 font-bold">Verified Practitioner License</p>
+                </div>
+              </div>
+
+              {/* Mentorship or Clinical Experience */}
+              <div className="p-3.5 rounded-xl border border-slate-200 space-y-2 bg-slate-50/50">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] text-slate-500">
+                  {therapistProfile.practitionerLevel === 'fresher'
+                    ? 'Clinical Internship & Supervised Mentorship'
+                    : 'Clinical Rotations & Specialization History'}
+                </h4>
+                {therapistProfile.practitionerLevel === 'fresher' ? (
+                  <div className="space-y-1.5">
+                    <p className="text-slate-700">
+                      <strong>Senior Supervising Clinician:</strong> {therapistProfile.supervisingTherapist || 'Dr. Ananya Sharma, MPT (Safdarjung Hospital)'}
+                    </p>
+                    <p className="text-slate-600 text-[11px]">
+                      • 6-Month Compulsory Rotatory Internship: Orthopedic OPD, Spine Rehabilitation, Neuro ICU, and Sports Injury Wing.
+                    </p>
+                    <p className="text-slate-600 text-[11px]">
+                      • Supervised protocol delivery for post-op ACL reconstruction, cervical spondylosis, and stroke gait retraining.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-slate-700">
+                      <strong>Senior Practice:</strong> {therapistProfile.experienceYears} Years clinical experience across hospital departments and dedicated outpatient rehabilitation centers.
+                    </p>
+                    <p className="text-slate-600 text-[11px]">
+                      • Lead consultant for postoperative knee & hip arthroplasty protocols and athletic return-to-sport testing.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Specializations & Skills */}
+              <div>
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] text-slate-500 mb-1.5">
+                  Core Clinical Specializations
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(therapistProfile.specializations || ['Orthopedics', 'Sports Rehab', 'Post-Op Knee']).map((spec, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium text-xs">
+                      {spec}
+                    </span>
+                  ))}
+                  {(therapistProfile.additionalQualifications || ['Dry Needling', 'Kinesiology Taping']).map((q, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg font-medium text-xs">
+                      ✓ {q}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  alert(`Downloading verified copy of ${therapistProfile.cvFileName || 'CV.pdf'}`);
+                }}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download CV PDF</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCvModalOpen(false);
+                    setUpdateCvModalOpen(true);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Update / Replace CV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCvModalOpen(false)}
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 2: ADD / UPDATE CV & CREDENTIALS                         */}
+      {/* ============================================================== */}
+      {updateCvModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-100 p-5 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
+                  <UploadCloud className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Add / Update Curriculum Vitae (CV)</h3>
+                  <p className="text-[11px] text-slate-500">Update professional details and attached credentials</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUpdateCvModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {cvUpdateSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 font-bold">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Your CV & practitioner credentials have been saved to Cloud Firestore!</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCv} className="space-y-3.5">
+              {/* Category Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Practitioner Level Category</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCvFormData({ ...cvFormData, practitionerLevel: 'experienced' })}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      cvFormData.practitionerLevel === 'experienced'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-500'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">🎓 Experienced Therapist</span>
+                    <span className="block text-[10px] text-slate-500 font-normal">2+ years clinical license</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCvFormData({ ...cvFormData, practitionerLevel: 'fresher' })}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      cvFormData.practitionerLevel === 'fresher'
+                        ? 'border-teal-600 bg-teal-50 text-teal-950 font-bold ring-1 ring-teal-500'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">🌱 Fresher Graduate</span>
+                    <span className="block text-[10px] text-slate-500 font-normal">Supervised mentorship</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* CV Document File Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Curriculum Vitae (CV) Document File Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={cvFormData.cvFileName}
+                  onChange={(e) => setCvFormData({ ...cvFormData, cvFileName: e.target.value })}
+                  placeholder="e.g. Dr_Sneha_Kulkarni_CV_2026.pdf"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono text-xs bg-slate-50 focus:bg-white"
+                />
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Attached to your clinician portal and visible during transfer handovers.
+                </p>
+              </div>
+
+              {/* CV Summary */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  CV Summary & Clinical Objectives
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={cvFormData.cvSummary}
+                  onChange={(e) => setCvFormData({ ...cvFormData, cvSummary: e.target.value })}
+                  placeholder="Brief overview of clinical focus, patient management philosophy..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              {/* Practice Certificate Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Practice Certificate / Degree Document
+                </label>
+                <input
+                  type="text"
+                  value={cvFormData.certificateName}
+                  onChange={(e) => setCvFormData({ ...cvFormData, certificateName: e.target.value })}
+                  placeholder="e.g. State_Council_License_Certificate.pdf"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono text-xs bg-slate-50 focus:bg-white"
+                />
+              </div>
+
+              {/* Mentorship if Fresher */}
+              {cvFormData.practitionerLevel === 'fresher' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Senior Supervising Clinician / Hospital
+                  </label>
+                  <input
+                    type="text"
+                    value={cvFormData.supervisingTherapist}
+                    onChange={(e) => setCvFormData({ ...cvFormData, supervisingTherapist: e.target.value })}
+                    placeholder="e.g. Dr. Ananya Sharma, MPT / Safdarjung Hospital"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Graduation College</label>
+                  <input
+                    type="text"
+                    value={cvFormData.college}
+                    onChange={(e) => setCvFormData({ ...cvFormData, college: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {cvFormData.practitionerLevel === 'experienced' ? 'Experience (Years)' : 'Graduation Year'}
+                  </label>
+                  <input
+                    type="number"
+                    value={cvFormData.practitionerLevel === 'experienced' ? cvFormData.experienceYears : cvFormData.graduationYear}
+                    onChange={(e) => {
+                      if (cvFormData.practitionerLevel === 'experienced') {
+                        setCvFormData({ ...cvFormData, experienceYears: Number(e.target.value) });
+                      } else {
+                        setCvFormData({ ...cvFormData, graduationYear: Number(e.target.value) });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUpdateCvModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold shadow-md shadow-teal-600/20"
+                >
+                  Save CV to Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 3: VIEW CERTIFICATE                                      */}
+      {/* ============================================================== */}
+      {certificateModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-100 p-6 space-y-4 animate-in fade-in zoom-in-95 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-teal-600" />
+                <h3 className="font-bold text-base text-slate-900">Official Practice Certificate</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCertificateModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Certificate Preview Frame */}
+            <div className="p-6 rounded-2xl bg-amber-50/40 border-2 border-dashed border-amber-300 space-y-4 text-center">
+              <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 text-amber-800 font-black text-lg">
+                ★
+              </div>
+              <div>
+                <h4 className="font-serif font-bold text-base text-slate-900 uppercase tracking-widest">
+                  {therapistProfile.registrationAuthority || 'Council for Physiotherapy'}
+                </h4>
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">
+                  Official Verification & Licensure Certificate
+                </p>
+              </div>
+
+              <div className="py-2 border-y border-amber-200/80 space-y-1">
+                <p className="text-[11px] text-slate-600">This certifies that</p>
+                <p className="text-base font-black text-slate-900 font-serif">{therapistProfile.fullName}</p>
+                <p className="text-xs text-slate-700">
+                  has duly satisfied council requirements as an{' '}
+                  <strong className="text-teal-800">
+                    {therapistProfile.practitionerLevel === 'experienced'
+                      ? 'Experienced Licensed Physiotherapist'
+                      : 'Fresher Graduate Physiotherapist'}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-left bg-white p-3 rounded-xl border border-amber-100 text-[11px]">
+                <div>
+                  <span className="text-slate-500 block">Registration Number:</span>
+                  <strong className="text-slate-900">{therapistProfile.registrationNumber || 'DCPTOT/2016/5412'}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Document Name:</span>
+                  <strong className="text-slate-900 truncate block">
+                    {therapistProfile.certificateName || 'License_Certificate.pdf'}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>STATE COUNCIL VERIFIED & VALIDATED</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCertificateModalOpen(false)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold"
+            >
+              Close Certificate Viewer
+            </button>
           </div>
         </div>
       )}

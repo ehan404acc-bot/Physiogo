@@ -101,13 +101,6 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
 
-  // Equipment state
-  const [equipmentListings, setEquipmentListings] = useState<EquipmentListing[]>(SAMPLE_EQUIPMENT_LISTINGS);
-  const [selectedEqForRequest, setSelectedEqForRequest] = useState<EquipmentListing | null>(null);
-  const [eqRequestType, setEqRequestType] = useState<'purchase' | 'rental'>('rental');
-  const [eqRentalDays, setEqRentalDays] = useState(14);
-  const [eqRequestSuccess, setEqRequestSuccess] = useState(false);
-
   // Complaints state
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [newComplaintCategory, setNewComplaintCategory] = useState<Complaint['category']>('service_quality');
@@ -286,33 +279,6 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
     }
   };
 
-  // Equipment request
-  const handleEquipmentRequestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEqForRequest) return;
-    const reqId = 'eqreq-' + Date.now();
-    try {
-      await setDoc(doc(db, 'equipmentRequests', reqId), {
-        id: reqId,
-        equipmentId: selectedEqForRequest.id,
-        equipmentName: selectedEqForRequest.name,
-        requesterId: currentUser?.uid || 'patient-vikram-malhotra',
-        requesterName: userProfile?.fullName || 'Vikram Malhotra',
-        requestType: eqRequestType,
-        rentalDays: eqRequestType === 'rental' ? eqRentalDays : null,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
-      setEqRequestSuccess(true);
-      setTimeout(() => {
-        setEqRequestSuccess(false);
-        setSelectedEqForRequest(null);
-      }, 2000);
-    } catch (err) {
-      console.error('Error submitting equipment request:', err);
-    }
-  };
-
   // Complaint submission
   const handleComplaintSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -473,17 +439,6 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
           <span>Community</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('marketplace')}
-          className={`py-2 px-4 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
-            activeTab === 'marketplace'
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-          }`}
-        >
-          <ShoppingBag className="w-4 h-4 text-purple-600" />
-          <span>Equipment</span>
-        </button>
 
         <button
           onClick={() => setActiveTab('complaints')}
@@ -1325,53 +1280,7 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
       )}
 
       {/* ============================================================== */}
-      {/* TAB 8: EQUIPMENT MARKETPLACE                                    */}
-      {/* ============================================================== */}
-      {activeTab === 'marketplace' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">Rehabilitation Equipment</h2>
-                <p className="text-xs text-slate-500">
-                  Buy or rent verified physical therapy equipment recommended by clinicians
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {equipmentListings.map((eq) => (
-                <div key={eq.id} className="p-4 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-                      {eq.category}
-                    </span>
-                    <h4 className="font-bold text-sm text-slate-900 mt-1">{eq.name}</h4>
-                    <p className="text-xs text-slate-500 mt-1">{eq.description}</p>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-black text-slate-900">₹{eq.price}</p>
-                      {eq.isForRent && (
-                        <p className="text-[11px] text-teal-700">Rent from ₹{eq.rentalPricePerDay}/day</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedEqForRequest(eq)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors"
-                    >
-                      Request
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* TAB 9: COMPLAINTS & FEEDBACK                                   */}
+      {/* TAB 8: COMPLAINTS & FEEDBACK                                   */}
       {/* ============================================================== */}
       {activeTab === 'complaints' && (
         <div className="space-y-6">
@@ -1554,87 +1463,7 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
         </div>
       )}
 
-      {/* MODAL: EQUIPMENT REQUEST */}
-      {selectedEqForRequest && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-base text-slate-900">Request Equipment</h3>
-              </div>
-              <button onClick={() => setSelectedEqForRequest(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {eqRequestSuccess ? (
-              <div className="p-6 text-center space-y-2">
-                <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle className="w-7 h-7" />
-                </div>
-                <h4 className="font-bold text-base text-slate-900">Order Placed!</h4>
-                <p className="text-xs text-slate-600">The supplier has been notified for dispatch.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleEquipmentRequestSubmit} className="space-y-4 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <h4 className="font-bold text-slate-900">{selectedEqForRequest.name}</h4>
-                  <p className="text-slate-600">{selectedEqForRequest.category}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEqRequestType('rental')}
-                    className={`p-2 rounded-xl border font-bold ${
-                      eqRequestType === 'rental' ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200'
-                    }`}
-                  >
-                    Rent (₹{selectedEqForRequest.rentalPricePerDay || 50}/day)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEqRequestType('purchase')}
-                    className={`p-2 rounded-xl border font-bold ${
-                      eqRequestType === 'purchase' ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-slate-200'
-                    }`}
-                  >
-                    Buy (₹{selectedEqForRequest.price})
-                  </button>
-                </div>
-
-                {eqRequestType === 'rental' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Rental Duration: {eqRentalDays} Days
-                    </label>
-                    <input
-                      type="range"
-                      min="7"
-                      max="60"
-                      step="7"
-                      value={eqRentalDays}
-                      onChange={(e) => setEqRentalDays(Number(e.target.value))}
-                      className="w-full accent-teal-600"
-                    />
-                    <p className="text-[11px] text-teal-800 font-bold mt-1">
-                      Estimated Rental Total: ₹{(selectedEqForRequest.rentalPricePerDay || 50) * eqRentalDays}
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-colors"
-                >
-                  Submit Order Request
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* MODAL: SESSION DETAIL */}
       {selectedSessionForModal && (
