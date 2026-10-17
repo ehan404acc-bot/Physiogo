@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Search,
+  Dumbbell,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -444,18 +445,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView, openA
             </button>
 
             <button
-              onClick={() => {
-                if (role === 'patient') handleNavClick('patient_portal');
-                else handleNavClick('patient_data');
-              }}
+              onClick={() => handleNavClick('patient_portal')}
               className={`p-2.5 rounded-xl text-xs font-bold text-left transition-colors flex items-center gap-2 ${
-                activeView === 'patient_data' || activeView === 'patient_portal'
-                  ? 'bg-teal-50 text-teal-700'
+                activeView === 'patient_portal'
+                  ? 'bg-emerald-50 text-emerald-800'
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <FileText className="w-4 h-4 text-teal-600" />
-              <span>Patient Data</span>
+              <Dumbbell className="w-4 h-4 text-emerald-600" />
+              <span>Home Exercises</span>
             </button>
 
             <button

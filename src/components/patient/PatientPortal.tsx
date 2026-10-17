@@ -34,7 +34,6 @@ import {
   TherapistTransferRequest,
   RecordAccessGrant,
   CommunityPost,
-  EquipmentListing,
   Complaint,
   Physiotherapist,
 } from '../../types';
@@ -45,7 +44,6 @@ import {
   SAMPLE_REHAB_PLAN,
   INITIAL_PHYSIOTHERAPISTS,
   SAMPLE_COMMUNITY_POSTS,
-  SAMPLE_EQUIPMENT_LISTINGS,
 } from '../../data/seedData';
 import { db, collection, getDocs, doc, setDoc, updateDoc } from '../../lib/firebase';
 import {
@@ -119,10 +117,32 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   const [selectedSessionForModal, setSelectedSessionForModal] = useState<TreatmentSession | null>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
+  // Home Exercise Program (HEP) Feedback state
+  const [exerciseFeedbackModalOpen, setExerciseFeedbackModalOpen] = useState(false);
+  const [feedbackPainRating, setFeedbackPainRating] = useState<number>(2);
+  const [feedbackExerciseNotes, setFeedbackExerciseNotes] = useState('');
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const [selectedExForFeedback, setSelectedExForFeedback] = useState<string | null>(null);
+
   // Load from Firestore
   useEffect(() => {
     const loadPatientData = async () => {
       try {
+        // Load rehabilitation plans (prescribed by therapist)
+        const planSnap = await getDocs(collection(db, 'rehabilitationPlans'));
+        if (!planSnap.empty) {
+          let matchedPlan: RehabilitationPlan | null = null;
+          planSnap.forEach((d) => {
+            const planData = d.data() as RehabilitationPlan;
+            if (planData.patientId === (currentUser?.uid || 'patient-vikram-malhotra')) {
+              matchedPlan = planData;
+            }
+          });
+          if (matchedPlan) {
+            setRehabPlan(matchedPlan);
+          }
+        }
+
         // Load appointments
         const apptSnap = await getDocs(collection(db, 'appointments'));
         if (!apptSnap.empty) {
@@ -170,14 +190,60 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
     loadPatientData();
   }, [currentUser]);
 
-  // Toggle exercise completion today
-  const toggleExercise = (exId: string) => {
+  // Toggle exercise completion today & sync
+  const toggleExercise = async (exId: string) => {
     setRehabPlan((prev) => {
       const updated = prev.exercises.map((ex) =>
         ex.id === exId ? { ...ex, completedToday: !ex.completedToday } : ex
       );
-      return { ...prev, exercises: updated };
+      const newPlan = { ...prev, exercises: updated };
+      try {
+        updateDoc(doc(db, 'rehabilitationPlans', newPlan.id), {
+          exercises: updated,
+        });
+      } catch (e) {
+        // local state remains responsive
+      }
+      return newPlan;
     });
+  };
+
+  // Reset daily completed status for new day
+  const handleResetDailyExercises = () => {
+    setRehabPlan((prev) => {
+      const reset = prev.exercises.map((ex) => ({ ...ex, completedToday: false }));
+      const newPlan = { ...prev, exercises: reset };
+      try {
+        updateDoc(doc(db, 'rehabilitationPlans', newPlan.id), { exercises: reset });
+      } catch (e) {
+        // ignore
+      }
+      return newPlan;
+    });
+  };
+
+  // Submit exercise feedback to clinician
+  const handleSendExerciseFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedbackSuccess(true);
+    const feedbackNote = `[Patient Feedback ${new Date().toLocaleDateString()}]: NPRS Pain ${feedbackPainRating}/10. Note: ${feedbackExerciseNotes || 'Routine completed successfully.'}`;
+    try {
+      await updateDoc(doc(db, 'rehabilitationPlans', rehabPlan.id), {
+        notes: rehabPlan.notes ? `${rehabPlan.notes}\n${feedbackNote}` : feedbackNote,
+      });
+      setRehabPlan((prev) => ({
+        ...prev,
+        notes: prev.notes ? `${prev.notes}\n${feedbackNote}` : feedbackNote,
+      }));
+    } catch (err) {
+      console.warn('Sync feedback failed:', err);
+    }
+    setTimeout(() => {
+      setFeedbackSuccess(false);
+      setExerciseFeedbackModalOpen(false);
+      setFeedbackExerciseNotes('');
+      setSelectedExForFeedback(null);
+    }, 1800);
   };
 
   // Submit transfer request with patient consent
@@ -400,7 +466,10 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
           }`}
         >
           <Dumbbell className="w-4 h-4 text-emerald-600" />
-          <span>My Exercises</span>
+          <span>Home Exercises</span>
+          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+            Prescribed
+          </span>
         </button>
 
         <button
@@ -1018,74 +1087,187 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
       )}
 
       {/* ============================================================== */}
-      {/* TAB 4: MY EXERCISES                                            */}
+      {/* TAB 4: PRESCRIBED HOME EXERCISES (HEP)                         */}
       {/* ============================================================== */}
       {activeTab === 'exercises' && (
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">{rehabPlan.title}</h2>
-                <p className="text-xs text-slate-500">
-                  Prescribed by {rehabPlan.therapistName} • {rehabPlan.frequency}
+            {/* Clinical Prescription Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1 border border-emerald-200">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Official Clinician Prescription
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    Home Exercise Program (HEP)
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{rehabPlan.title}</h2>
+                <p className="text-xs text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span>Prescribed by: <strong className="text-slate-900">{rehabPlan.therapistName}</strong></span>
+                  <span>•</span>
+                  <span>Target: <strong className="text-teal-700">{rehabPlan.targetCondition}</strong></span>
+                  <span>•</span>
+                  <span>Schedule: <strong>{rehabPlan.frequency}</strong></span>
                 </p>
               </div>
-              <div className="bg-teal-50 border border-teal-200 text-teal-800 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                <span>Today's Adherence: {adherencePercent}%</span>
+
+              {/* Action Buttons: Log Feedback & Adherence */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedExForFeedback(null);
+                    setExerciseFeedbackModalOpen(true);
+                  }}
+                  className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  <Activity className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Log Pain / Feedback to Therapist</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetDailyExercises}
+                  title="Reset daily completion checkmarks for a fresh routine today"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+                >
+                  Reset Daily Checks
+                </button>
               </div>
             </div>
 
-            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900">
-              <strong>Precautions:</strong> {rehabPlan.precautions}
+            {/* Daily Adherence Progress Bar */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-800">
+                  Today's Prescribed Routine Progress:
+                </span>
+                <span className="font-black text-teal-700">
+                  {completedCount} of {rehabPlan.exercises.length} Exercises Completed ({adherencePercent}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-teal-500 to-emerald-600 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${adherencePercent}%` }}
+                ></div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Perform each exercise in order according to the prescribed sets, repetitions, and hold intervals. Click the checkmark upon completing each exercise.
+              </p>
             </div>
 
+            {/* Clinician's Mandatory Precautions Box */}
+            <div className="p-4 bg-amber-50 border border-amber-200/90 rounded-2xl text-xs text-amber-950 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold">Clinician's Safety Precautions & Guidance:</p>
+                <p className="leading-relaxed text-amber-900">{rehabPlan.precautions}</p>
+              </div>
+            </div>
+
+            {/* Prescribed Exercises List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {rehabPlan.exercises.map((ex) => (
+              {rehabPlan.exercises.map((ex, index) => (
                 <div
                   key={ex.id}
-                  className={`p-5 rounded-2xl border transition-all ${
-                    ex.completedToday ? 'bg-teal-50/50 border-teal-300 shadow-sm' : 'bg-white border-slate-200'
+                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                    ex.completedToday
+                      ? 'bg-emerald-50/60 border-emerald-300 shadow-sm'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 px-2 py-0.5 rounded">
-                        {ex.targetArea}
-                      </span>
-                      <h4 className="text-base font-bold text-slate-900 mt-1">{ex.name}</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                            EX #{index + 1}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-100 px-2 py-0.5 rounded">
+                            {ex.targetArea}
+                          </span>
+                        </div>
+                        <h4 className="text-base font-bold text-slate-900 mt-1">{ex.name}</h4>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleExercise(ex.id)}
+                        className={`h-10 w-10 rounded-xl flex items-center justify-center transition-all ${
+                          ex.completedToday
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'border-2 border-slate-300 text-slate-400 hover:border-teal-500 hover:text-teal-600'
+                        }`}
+                        title={ex.completedToday ? 'Mark as incomplete' : 'Mark completed today'}
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                      </button>
                     </div>
 
-                    <button
-                      onClick={() => toggleExercise(ex.id)}
-                      className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all ${
-                        ex.completedToday
-                          ? 'bg-teal-600 text-white'
-                          : 'border-2 border-slate-300 text-slate-400 hover:border-teal-500'
-                      }`}
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                    </button>
+                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100">
+                      <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                        <span className="font-bold text-slate-900">Clinician Instructions: </span>
+                        {ex.instructions}
+                      </p>
+                    </div>
+
+                    {/* Prescribed Dosage Metrics */}
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="text-[10px] text-slate-500 block">Sets</span>
+                        <strong className="text-slate-900 text-sm">{ex.sets}</strong>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="text-[10px] text-slate-500 block">Reps</span>
+                        <strong className="text-slate-900 text-sm">{ex.repetitions}</strong>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="text-[10px] text-slate-500 block">Hold</span>
+                        <strong className="text-slate-900 text-sm">{ex.holdSeconds}s</strong>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="text-[10px] text-slate-500 block">Frequency</span>
+                        <strong className="text-slate-900 text-sm">{ex.frequencyPerDay || 2}x / day</strong>
+                      </div>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{ex.instructions}</p>
-
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-xs">
-                    <div className="bg-slate-50 p-2 rounded-lg text-center">
-                      <span className="text-[10px] text-slate-500 block">Sets</span>
-                      <strong className="text-slate-900">{ex.sets}</strong>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg text-center">
-                      <span className="text-[10px] text-slate-500 block">Reps</span>
-                      <strong className="text-slate-900">{ex.repetitions}</strong>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg text-center">
-                      <span className="text-[10px] text-slate-500 block">Hold</span>
-                      <strong className="text-slate-900">{ex.holdSeconds}s</strong>
-                    </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-slate-500">
+                      {ex.completedToday ? (
+                        <span className="text-emerald-700 font-bold flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5" /> Completed for today
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">Pending completion today</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedExForFeedback(ex.name);
+                        setExerciseFeedbackModalOpen(true);
+                      }}
+                      className="text-teal-700 hover:text-teal-900 font-bold text-[11px] hover:underline"
+                    >
+                      Report issue with this exercise
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Prescribing Therapist Contact & Notes */}
+            {rehabPlan.notes && (
+              <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl text-xs space-y-1">
+                <p className="font-bold text-teal-900">Dr. {rehabPlan.therapistName}'s Ongoing Session Notes & Patient Log:</p>
+                <p className="text-slate-700 whitespace-pre-line leading-relaxed font-mono text-[11px]">{rehabPlan.notes}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1508,6 +1690,104 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
             <p className="text-xs text-slate-500">
               Show this token at the clinic reception desk to instantly link your appointment.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EXERCISE FEEDBACK TO THERAPIST */}
+      {exerciseFeedbackModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Report Exercise Feedback</h3>
+                  <p className="text-xs text-slate-500">Send updates directly to {rehabPlan.therapistName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExerciseFeedbackModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {feedbackSuccess ? (
+              <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-base text-emerald-950">Feedback Sent to Clinician!</h4>
+                <p className="text-xs text-emerald-800">
+                  Your pain rating and notes have been logged for Dr. {rehabPlan.therapistName} to review during your next check-in.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSendExerciseFeedback} className="space-y-4 text-xs">
+                {selectedExForFeedback && (
+                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-500 block">Specific Exercise:</span>
+                    <strong className="text-slate-900 text-sm">{selectedExForFeedback}</strong>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    NPRS Pain Level During Routine: <span className="text-teal-700 font-black text-sm">{feedbackPainRating} / 10</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={feedbackPainRating}
+                    onChange={(e) => setFeedbackPainRating(Number(e.target.value))}
+                    className="w-full accent-teal-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>0: No Pain</span>
+                    <span>3: Mild Ache</span>
+                    <span>7: Sharp Pain</span>
+                    <span>10: Unbearable</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Notes, Difficulties, or Questions for Therapist
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={feedbackExerciseNotes}
+                    onChange={(e) => setFeedbackExerciseNotes(e.target.value)}
+                    placeholder="e.g., Felt mild stiffness on rep 12 of heel slides. No swelling observed."
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-xs"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-900">
+                  ⚠️ If you experience sudden sharp pain, joint swelling, or numbness, stop the exercise immediately and contact your doctor.
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setExerciseFeedbackModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-sm transition-colors"
+                  >
+                    Send to Therapist
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

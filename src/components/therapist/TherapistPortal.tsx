@@ -27,12 +27,15 @@ import {
   UploadCloud,
   FileCheck,
   ExternalLink,
+  Dumbbell,
+  Trash2,
 } from 'lucide-react';
 import {
   Appointment,
   ClinicalAssessment,
   TreatmentSession,
   RehabilitationPlan,
+  ExerciseItem,
   ProgressMeasurement,
   TherapistTransferRequest,
   RecordAccessGrant,
@@ -53,7 +56,16 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 
 export const TherapistPortal: React.FC = () => {
   const { currentUser, userProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'appointments' | 'patients' | 'assessments' | 'soap_sessions' | 'rehab_plans' | 'transfers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<
+    | 'dashboard'
+    | 'appointments'
+    | 'patients'
+    | 'assessments'
+    | 'soap_sessions'
+    | 'rehab_plans'
+    | 'prescribe_exercises'
+    | 'transfers'
+  >('dashboard');
 
   // Active Therapist Profile (Experienced vs Fresher)
   const [therapistProfile, setTherapistProfile] = useState<Physiotherapist>(() => {
@@ -198,6 +210,19 @@ export const TherapistPortal: React.FC = () => {
   const [clinicianReviewNotes, setClinicianReviewNotes] = useState('');
   const [clinicianReviewed, setClinicianReviewed] = useState(false);
 
+  // Home Exercise Program (HEP) Prescription State
+  const [prescribedPlan, setPrescribedPlan] = useState<RehabilitationPlan>(SAMPLE_REHAB_PLAN);
+  const [prescribeSuccess, setPrescribeSuccess] = useState(false);
+  const [customEx, setCustomEx] = useState({
+    name: '',
+    targetArea: 'Quadriceps / Knee Stability',
+    sets: 3,
+    repetitions: 15,
+    holdSeconds: 5,
+    frequencyPerDay: 2,
+    instructions: '',
+  });
+
   // Load from Firestore
   useEffect(() => {
     const loadTherapistData = async () => {
@@ -219,6 +244,16 @@ export const TherapistPortal: React.FC = () => {
               graduationYear: data.graduationYear || 2024,
             });
           }
+        }
+
+        const planSnap = await getDocs(collection(db, 'rehabilitationPlans'));
+        if (!planSnap.empty) {
+          planSnap.forEach((d) => {
+            const planData = d.data() as RehabilitationPlan;
+            if (planData.id === SAMPLE_REHAB_PLAN.id) {
+              setPrescribedPlan(planData);
+            }
+          });
         }
 
         const apptSnap = await getDocs(collection(db, 'appointments'));
@@ -310,6 +345,88 @@ export const TherapistPortal: React.FC = () => {
       });
     } catch (e) {
       console.warn('Firestore appointment status update failed:', e);
+    }
+  };
+
+  // Prescribe Exercise Handlers
+  const handleAddCustomExercise = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customEx.name || !customEx.instructions) return;
+    const newExercise: ExerciseItem = {
+      id: 'ex-' + Date.now(),
+      name: customEx.name,
+      targetArea: customEx.targetArea,
+      sets: Number(customEx.sets),
+      repetitions: Number(customEx.repetitions),
+      holdSeconds: Number(customEx.holdSeconds),
+      frequencyPerDay: Number(customEx.frequencyPerDay),
+      instructions: customEx.instructions,
+      completedToday: false,
+    };
+    setPrescribedPlan((prev) => ({
+      ...prev,
+      exercises: [...prev.exercises, newExercise],
+    }));
+    setCustomEx({
+      name: '',
+      targetArea: 'Quadriceps / Knee Stability',
+      sets: 3,
+      repetitions: 15,
+      holdSeconds: 5,
+      frequencyPerDay: 2,
+      instructions: '',
+    });
+  };
+
+  const handleQuickAddPreset = (
+    name: string,
+    targetArea: string,
+    sets: number,
+    reps: number,
+    hold: number,
+    instructions: string
+  ) => {
+    const newEx: ExerciseItem = {
+      id: 'ex-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      name,
+      targetArea,
+      sets,
+      repetitions: reps,
+      holdSeconds: hold,
+      frequencyPerDay: 2,
+      instructions,
+      completedToday: false,
+    };
+    setPrescribedPlan((prev) => ({
+      ...prev,
+      exercises: [...prev.exercises, newEx],
+    }));
+  };
+
+  const handleRemoveExercise = (exId: string) => {
+    setPrescribedPlan((prev) => ({
+      ...prev,
+      exercises: prev.exercises.filter((e) => e.id !== exId),
+    }));
+  };
+
+  const handleSavePrescription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updatedPlan: RehabilitationPlan = {
+        ...prescribedPlan,
+        therapistId: currentUser?.uid || therapistProfile.id,
+        therapistName: therapistProfile.fullName,
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'rehabilitationPlans', updatedPlan.id), updatedPlan);
+      setPrescribedPlan(updatedPlan);
+      setPrescribeSuccess(true);
+      setTimeout(() => setPrescribeSuccess(false), 2500);
+    } catch (err) {
+      console.warn('Failed to save prescription to Firestore:', err);
+      setPrescribeSuccess(true);
+      setTimeout(() => setPrescribeSuccess(false), 2500);
     }
   };
 
@@ -679,6 +796,16 @@ export const TherapistPortal: React.FC = () => {
         >
           <Edit3 className="w-4 h-4" />
           <span>SOAP Session Notes</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('prescribe_exercises')}
+          className={`py-2 px-3.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'prescribe_exercises' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Dumbbell className="w-4 h-4" />
+          <span>Prescribe Home Exercises</span>
         </button>
 
         <button
@@ -1089,6 +1216,375 @@ export const TherapistPortal: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB: PRESCRIBE HOME EXERCISES (HEP)                            */}
+      {/* ============================================================== */}
+      {activeTab === 'prescribe_exercises' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">
+                  <Dumbbell className="w-4 h-4 text-emerald-600" />
+                  Clinical Protocol Management
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                  Prescribe Home Exercise Program (HEP)
+                </h2>
+                <p className="text-xs text-slate-600">
+                  Create, customize, and issue verified home exercise routines directly to your patient's portal.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 hidden sm:inline">Active Patient:</span>
+                <span className="text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-blue-600" />
+                  Vikram Malhotra (ACL Post-Op)
+                </span>
+              </div>
+            </div>
+
+            {/* Success notification */}
+            {prescribeSuccess && (
+              <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-emerald-900 text-xs font-semibold animate-in fade-in">
+                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>
+                  Prescription updated and published to patient Vikram Malhotra's Home Exercise portal!
+                </span>
+              </div>
+            )}
+
+            {/* Plan Configuration Form */}
+            <form onSubmit={handleSavePrescription} className="space-y-6">
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  Prescription Parameters & Diagnosis
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Program Title</label>
+                    <input
+                      type="text"
+                      value={prescribedPlan.title}
+                      onChange={(e) => setPrescribedPlan({ ...prescribedPlan, title: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Target Condition / Joint</label>
+                    <input
+                      type="text"
+                      value={prescribedPlan.targetCondition}
+                      onChange={(e) => setPrescribedPlan({ ...prescribedPlan, targetCondition: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Daily Schedule & Frequency</label>
+                    <input
+                      type="text"
+                      value={prescribedPlan.frequency}
+                      onChange={(e) => setPrescribedPlan({ ...prescribedPlan, frequency: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Duration (Weeks)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="52"
+                      value={prescribedPlan.durationWeeks}
+                      onChange={(e) => setPrescribedPlan({ ...prescribedPlan, durationWeeks: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-xs">
+                  <label className="block text-slate-700 font-bold mb-1">
+                    Mandatory Safety Precautions & Contraindications
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={prescribedPlan.precautions}
+                    onChange={(e) => setPrescribedPlan({ ...prescribedPlan, precautions: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-medium outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Add Exercise Library */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-xs text-slate-800">
+                    Quick-Add from Clinical Exercise Library:
+                  </h4>
+                  <span className="text-[11px] text-slate-500">Click to append to routine</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddPreset(
+                        'Isometric Quadriceps Setting',
+                        'Quadriceps (VMO)',
+                        3,
+                        15,
+                        6,
+                        'Contract quad firmly against rolled towel under knee. Hold 6s and relax smoothly.'
+                      )
+                    }
+                    className="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 border border-slate-200 px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Isometric Quad Sets
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddPreset(
+                        'Terminal Knee Extension with Band',
+                        'Knee Extension Lock',
+                        3,
+                        15,
+                        3,
+                        'Anchor loop band to table leg. Straighten knee against resistance until full lockout.'
+                      )
+                    }
+                    className="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 border border-slate-200 px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Terminal Knee Extension (TKE)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddPreset(
+                        'Mini Wall Squats with Gym Ball',
+                        'Quadriceps & Gluteals',
+                        2,
+                        10,
+                        5,
+                        'Place swiss ball behind lower back. Squat to 45 deg knee flexion, push up through heels.'
+                      )
+                    }
+                    className="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 border border-slate-200 px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Wall Squats (Ball)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddPreset(
+                        'Heel Slides with Towel Assist',
+                        'Hamstring Flexion & Joint Range',
+                        3,
+                        12,
+                        4,
+                        'Loop towel under foot, slide heel toward buttocks smoothly. Hold end range without jerking.'
+                      )
+                    }
+                    className="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 border border-slate-200 px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Heel Slides
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddPreset(
+                        'Patellar Superior & Inferior Mobilizations',
+                        'Patellofemoral Joint',
+                        2,
+                        20,
+                        2,
+                        'With relaxed knee, use thumbs to gently translate patella superiorly and inferiorly.'
+                      )
+                    }
+                    className="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 border border-slate-200 px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Patellar Mobilizations
+                  </button>
+                </div>
+              </div>
+
+              {/* Prescribed Exercises in Plan */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm text-slate-900">
+                    Currently Prescribed Exercises ({prescribedPlan.exercises.length})
+                  </h4>
+                  <span className="text-xs text-slate-500">Patient sees these directly in their portal</span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {prescribedPlan.exercises.map((ex, idx) => (
+                    <div
+                      key={ex.id}
+                      className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                            #{idx + 1}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                            {ex.targetArea}
+                          </span>
+                          <h5 className="font-bold text-sm text-slate-900">{ex.name}</h5>
+                        </div>
+                        <p className="text-xs text-slate-600">{ex.instructions}</p>
+                        <p className="text-[11px] text-slate-500 flex items-center gap-3 pt-0.5 font-medium">
+                          <span>Sets: <strong className="text-slate-800">{ex.sets}</strong></span>
+                          <span>•</span>
+                          <span>Reps: <strong className="text-slate-800">{ex.repetitions}</strong></span>
+                          <span>•</span>
+                          <span>Hold: <strong className="text-slate-800">{ex.holdSeconds}s</strong></span>
+                          <span>•</span>
+                          <span>Frequency: <strong className="text-slate-800">{ex.frequencyPerDay || 2}x / day</strong></span>
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExercise(ex.id)}
+                        className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-xl transition-colors self-end sm:self-center"
+                        title="Remove from prescription"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add Custom Exercise to Prescription */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-emerald-600" />
+                  Add Custom Exercise to Prescription
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-600 font-semibold mb-1">Exercise Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Straight Leg Raise with Ankle Weight"
+                      value={customEx.name}
+                      onChange={(e) => setCustomEx({ ...customEx, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-600 font-semibold mb-1">Target Joint / Muscle</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Hip Flexors / Quadriceps"
+                      value={customEx.targetArea}
+                      onChange={(e) => setCustomEx({ ...customEx, targetArea: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">Sets</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={customEx.sets}
+                      onChange={(e) => setCustomEx({ ...customEx, sets: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">Reps</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={customEx.repetitions}
+                      onChange={(e) => setCustomEx({ ...customEx, repetitions: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">Hold (Seconds)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={customEx.holdSeconds}
+                      onChange={(e) => setCustomEx({ ...customEx, holdSeconds: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">Frequency (Daily)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="5"
+                      value={customEx.frequencyPerDay}
+                      onChange={(e) => setCustomEx({ ...customEx, frequencyPerDay: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 md:col-span-4">
+                    <label className="block text-slate-600 font-semibold mb-1">Clinical Instructions & Form Cues</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Keep knee straight without bending. Lift heel 6 inches off ground. Do not arch back."
+                      value={customEx.instructions}
+                      onChange={(e) => setCustomEx({ ...customEx, instructions: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddCustomExercise}
+                  disabled={!customEx.name || !customEx.instructions}
+                  className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Exercise to List</span>
+                </button>
+              </div>
+
+              {/* Submit & Publish Button */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                <p className="text-xs text-slate-500">
+                  Submitting will officially stamp this Home Exercise Program with your registered clinician signature.
+                </p>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Save & Publish Home Exercise Prescription</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

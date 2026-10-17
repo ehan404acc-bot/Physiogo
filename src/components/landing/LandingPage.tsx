@@ -3,7 +3,6 @@ import {
   Activity,
   ShieldCheck,
   FileText,
-  ArrowRightLeft,
   Calendar,
   Sparkles,
   TrendingUp,
@@ -18,6 +17,8 @@ import {
   Clock,
   Compass,
   AlertTriangle,
+  Dumbbell,
+  CheckCircle,
 } from 'lucide-react';
 import { INITIAL_PHYSIOTHERAPISTS } from '../../data/seedData';
 
@@ -30,144 +31,139 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveView, openAut
   const verifiedTherapists = INITIAL_PHYSIOTHERAPISTS.filter((pt) => pt.verificationStatus === 'verified');
 
   return (
-    <div className="space-y-20 pb-16">
+    <div className="space-y-16 pb-16">
       {/* 1. Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-slate-50 to-white pt-12 pb-20 border-b border-slate-200">
+      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-slate-50 to-white pt-10 sm:pt-14 pb-16 sm:pb-20 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Column: Headlines & CTAs */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left Column: Headlines & Patient CTAs */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold">
                 <ShieldCheck className="w-4 h-4 text-teal-600" />
-                <span>Next-Gen Healthcare Innovation • State Council Verified</span>
+                <span>Next-Gen Healthcare Innovation • State Council Verified Clinicians</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.15]">
                 Your Recovery.{' '}
                 <span className="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-600 bg-clip-text text-transparent">
-                  Your Records.
+                  Your Exercises.
                 </span>{' '}
                 Your Choice.
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Find trusted physiotherapists, book personalized rehabilitation services, securely manage your recovery history, and experience the groundbreaking <strong>Rehabilitation Passport & Smart Therapist Handover System</strong>.
+              <p className="text-sm sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                Connect with verified physiotherapists, follow personalized home exercise routines prescribed by your therapist, book home or clinic sessions, and rent specialized rehabilitation equipment for faster recovery.
               </p>
 
-              {/* CTAs */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
+              {/* Patient-Focused CTAs (Removed 'Join as Physiotherapist' & Demo Handover) */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
                 <button
                   onClick={() => setActiveView('directory')}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-blue-600/25 transition-all flex items-center gap-2 group text-sm sm:text-base"
                 >
+                  <Users className="w-4 h-4" />
                   <span>Find a Physiotherapist</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <button
-                  onClick={() => openAuthModal('register_pt')}
+                  onClick={() => setActiveView('patient_portal')}
                   className="bg-white hover:bg-slate-50 text-slate-800 font-bold px-5 py-3.5 rounded-xl border border-slate-300 shadow-sm transition-all text-sm sm:text-base flex items-center gap-2"
                 >
-                  <Award className="w-4 h-4 text-emerald-600" />
-                  <span>Join as Physiotherapist</span>
+                  <Dumbbell className="w-4 h-4 text-teal-600" />
+                  <span>My Home Exercises</span>
                 </button>
 
                 <button
-                  onClick={() => setActiveView('demo_walkthrough')}
-                  className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold px-5 py-3.5 rounded-xl shadow-md transition-all text-sm sm:text-base flex items-center gap-2"
+                  onClick={() => setActiveView('rental_portal')}
+                  className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold px-5 py-3.5 rounded-xl border border-teal-200 transition-all text-sm sm:text-base flex items-center gap-2"
                 >
-                  <ArrowRightLeft className="w-4 h-4" />
-                  <span>Test End-to-End Handover</span>
+                  <ShoppingBag className="w-4 h-4 text-teal-700" />
+                  <span>Rent Recovery Equipment</span>
                 </button>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="pt-6 border-t border-slate-200/80 grid grid-cols-3 gap-4 text-left max-w-lg mx-auto lg:mx-0">
-                <div>
-                  <p className="text-2xl font-black text-slate-900">100%</p>
-                  <p className="text-xs text-slate-500 font-medium">Verified Credentials</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-slate-900">Zero-Loss</p>
-                  <p className="text-xs text-slate-500 font-medium">Record Portability</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-teal-700">AI-Assisted</p>
-                  <p className="text-xs text-slate-500 font-medium">Continuity Summaries</p>
-                </div>
               </div>
             </div>
 
-            {/* Right Column: Interactive Rehabilitation Passport Card Preview */}
+            {/* Right Column: Home Recovery & Prescribed Exercises Showcase Card */}
             <div className="lg:col-span-5">
               <div className="relative mx-auto max-w-md">
-                <div className="absolute -inset-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-400 rounded-3xl blur-lg opacity-30 group-hover:opacity-100 transition duration-1000"></div>
+                <div className="absolute -inset-1.5 bg-gradient-to-r from-blue-600 via-teal-500 to-emerald-400 rounded-3xl blur-lg opacity-25"></div>
 
-                <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 space-y-4">
+                <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200/90 p-5 sm:p-6 space-y-4">
                   {/* Card Header */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs">
-                        <FileText className="w-4 h-4" />
+                      <div className="h-9 w-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                        <Dumbbell className="w-4 h-4" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-slate-900">Rehabilitation Passport</h4>
-                        <p className="text-[11px] text-teal-700 font-semibold">Patient: Vikram Malhotra (ACL Post-Op)</p>
+                        <h4 className="text-sm font-bold text-slate-900">Prescribed Home Exercises</h4>
+                        <p className="text-[11px] text-teal-700 font-medium">Prescribed by Dr. Ananya Sharma, MPT</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Active Sync
+                      <CheckCircle2 className="w-3 h-3" /> Active Plan
                     </span>
                   </div>
 
-                  {/* Summary Metric Pills */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <p className="text-slate-500 text-[10px]">Knee Extension Lag</p>
-                      <p className="text-base font-bold text-slate-900 mt-0.5">
-                        -10° <span className="text-emerald-600 text-xs">→ 0° (Restored)</span>
-                      </p>
+                  {/* Active Home Exercises List */}
+                  <div className="space-y-2.5">
+                    <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center mt-0.5 shrink-0">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Isometric Quad Setting</p>
+                          <p className="text-[11px] text-slate-500">3 sets • 15 reps • 6s hold</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Completed
+                      </span>
                     </div>
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <p className="text-slate-500 text-[10px]">Pain Level (NPRS)</p>
-                      <p className="text-base font-bold text-slate-900 mt-0.5">
-                        7/10 <span className="text-teal-600 text-xs">→ 3/10</span>
-                      </p>
+
+                    <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-5 h-5 rounded-full border-2 border-slate-300 text-slate-300 flex items-center justify-center mt-0.5 shrink-0">
+                          <div className="w-2 h-2 rounded-full bg-transparent"></div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Terminal Knee Extension (Band)</p>
+                          <p className="text-[11px] text-slate-500">3 sets • 15 reps • 3s hold</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                        Pending
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-5 h-5 rounded-full border-2 border-slate-300 text-slate-300 flex items-center justify-center mt-0.5 shrink-0">
+                          <div className="w-2 h-2 rounded-full bg-transparent"></div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Mini Wall Squats with Ball</p>
+                          <p className="text-[11px] text-slate-500">2 sets • 10 reps • 45° bend</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                        Pending
+                      </span>
                     </div>
                   </div>
 
-                  {/* Handover Grant Banner */}
-                  <div className="bg-gradient-to-r from-blue-50 to-teal-50 border border-teal-200 p-3 rounded-xl space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                      <span className="flex items-center gap-1.5 text-teal-800">
-                        <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                        Smart Handover Transfer
-                      </span>
-                      <span className="text-[10px] bg-teal-200/70 text-teal-900 px-1.5 py-0.2 rounded font-semibold">
-                        Authorized
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-tight">
-                      Historical records from <strong>Dr. Ananya Sharma</strong> safely transferred to receiving specialist <strong>Dr. Rajesh Verma</strong> with zero loss of clinical data.
-                    </p>
-                  </div>
-
-                  {/* Recent SOAP Note Snippet */}
-                  <div className="border border-slate-100 rounded-xl p-2.5 text-[11px] space-y-1 bg-slate-50/50">
-                    <div className="flex justify-between text-slate-500 text-[10px]">
-                      <span>Documented SOAP Session #4</span>
-                      <span>22 March 2026</span>
-                    </div>
-                    <p className="text-slate-700 font-medium">
-                      <strong>Assessment:</strong> Full active extension restored. Ready for closed-chain functional progression.
-                    </p>
+                  {/* Therapist Precautions note */}
+                  <div className="bg-amber-50 border border-amber-200/80 p-3 rounded-xl text-[11px] text-amber-900 leading-tight">
+                    <span className="font-bold">Clinician Note:</span> Keep repetitions smooth. Stop immediately if acute pain exceeds 4/10. Ice knee for 15 mins after session.
                   </div>
 
                   <button
-                    onClick={() => setActiveView('demo_walkthrough')}
-                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                    onClick={() => setActiveView('patient_portal')}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                   >
-                    <span>Inspect Live Handover Journey</span>
+                    <span>Open My Home Exercise Program</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -177,65 +173,65 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveView, openAut
         </div>
       </section>
 
-      {/* 2. The Primary Innovation: Rehabilitation Passport & Smart Handover */}
+      {/* 2. Patient Services: Complete Home & Clinic Rehabilitation */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 rounded-3xl p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="max-w-3xl space-y-4 relative z-10">
+          <div className="max-w-3xl space-y-3 relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-400/20 text-teal-300 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              The PhysioGo Core Innovation
+              Patient-Centered Care
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              No More Restarting From Zero When Changing Physiotherapists
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Everything You Need for Safe, Supervised Recovery at Home
             </h2>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Traditional physiotherapy leaves patient records trapped in isolated clinics. If you relocate, change work hours, or need a different specialist, you lose your documented range-of-motion progress, surgical precautions, and intervention history.
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Connect with registered physiotherapists who prescribe structured home routines, monitor your day-to-day progress, and provide medical equipment support.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 relative z-10">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-7 relative z-10">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-2.5">
               <div className="h-10 w-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold">
-                <FileText className="w-5 h-5" />
+                <Dumbbell className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-white">1. Portable Passport</h3>
+              <h3 className="text-base font-bold text-white">1. Prescribed Home Exercises</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Patients maintain full ownership of their structured clinical assessments, objective ROM & strength tables, and chronological SOAP notes.
+                Receive customized rehabilitation routines with explicit sets, reps, hold times, and instructions designed by your physiotherapist.
               </p>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-2.5">
               <div className="h-10 w-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold">
-                <ArrowRightLeft className="w-5 h-5" />
+                <Users className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-white">2. Explicit Consent Handover</h3>
+              <h3 className="text-base font-bold text-white">2. Verified Physiotherapists</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                When transferring care, patients selectively grant time-bound access to receiving therapists. Access can be revoked anytime with one click.
+                Book clinic consultations or home visits with certified orthopedic, sports, neurological, and geriatric physical therapists.
               </p>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-2.5">
               <div className="h-10 w-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold">
-                <Sparkles className="w-5 h-5" />
+                <ShoppingBag className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-white">3. AI Smart Handover Summary</h3>
+              <h3 className="text-base font-bold text-white">3. Equipment Rental Portal</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Powered by Google Gemini, the system provides a structured clinical synthesis with clear source record references, pending tests, and safety precautions.
+                Rent hospital-grade CPM machines, ultrasound units, TENS machines, walkers, and wheelchairs delivered straight to your door.
               </p>
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
+          <div className="mt-7 pt-5 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
             <div className="text-xs text-slate-400">
-              Strict Patient-First Security • Zero Public QR Exposure • Indian Healthcare Compliant
+              Council-Verified Physiotherapists • Home Visit Coverage • Zero Unnecessary Travel
             </div>
             <button
-              onClick={() => setActiveView('demo_walkthrough')}
-              className="bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2"
+              onClick={() => setActiveView('directory')}
+              className="bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-2"
             >
-              <span>See Handover Workflow in Action</span>
+              <span>Explore Verified Physiotherapists</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -274,9 +270,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveView, openAut
             <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm">
               03
             </div>
-            <h3 className="text-base font-bold text-slate-900">Documented Passport</h3>
+            <h3 className="text-base font-bold text-slate-900">Prescribed Home Exercises</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Your therapist enters structured assessments, exercise sets/reps, and objective outcome measures saved directly to your passport.
+              Your therapist prescribes custom rehabilitation exercises with precise sets, reps, hold times, and precautions to practice at home.
             </p>
           </div>
 

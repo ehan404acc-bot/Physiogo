@@ -20,6 +20,7 @@ import {
   Stethoscope,
   ShieldCheck,
   LogIn,
+  Dumbbell,
 } from 'lucide-react';
 
 const MainApp: React.FC = () => {
@@ -137,8 +138,14 @@ const MainApp: React.FC = () => {
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
-          <FileText className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Patient Data</span>
+          {role === 'patient' ? (
+            <Dumbbell className="w-5 h-5 text-emerald-600" />
+          ) : (
+            <FileText className="w-5 h-5" />
+          )}
+          <span className="text-[10px] mt-0.5">
+            {role === 'patient' ? 'Exercises' : 'Records'}
+          </span>
         </button>
 
         <button
